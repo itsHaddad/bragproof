@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { insideConfidentialSpace, lockSocket } from "../attest/confidential-space.ts";
+import { assertSubjectCannotAttest, insideConfidentialSpace } from "../attest/confidential-space.ts";
 import { runCheck } from "../check/run.ts";
 import { FeedDb } from "../feed/db.ts";
 import { feedHandler } from "../feed/server.ts";
@@ -65,7 +65,7 @@ async function main() {
   if (cmd === "run") {
     const fromEnv = process.env.CHECK_SPEC_B64;
     const spec = (rest[0] ? await readJson(rest[0]) : fromEnv ? JSON.parse(Buffer.from(fromEnv, "base64").toString("utf8")) : need(undefined, "run needs a spec file")) as CheckSpec;
-    if (insideConfidentialSpace()) lockSocket();
+    if (insideConfidentialSpace()) assertSubjectCannotAttest();
     const result = await runCheck(spec);
     const receipt = await makeReceipt(spec, result);
     const out = flag(flags, "out");

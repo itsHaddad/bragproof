@@ -8,8 +8,8 @@ export class McpStdioClient {
   private waiting = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   private closed: Error | null = null;
 
-  constructor(command: string, args: string[], opts: { cwd?: string; env?: Record<string, string>; uid?: number; gid?: number } = {}) {
-    this.child = spawn(command, args, { cwd: opts.cwd, env: opts.env, uid: opts.uid, gid: opts.gid, detached: true, stdio: ["pipe", "pipe", "pipe"] });
+  constructor(command: string, args: string[], opts: { cwd?: string; env?: Record<string, string> } = {}) {
+    this.child = spawn(command, args, { cwd: opts.cwd, env: opts.env, detached: true, stdio: ["pipe", "pipe", "pipe"] });
     this.child.stdout.setEncoding("utf8");
     this.child.stdout.on("data", (chunk: string) => this.onData(chunk));
     this.child.stderr.resume();

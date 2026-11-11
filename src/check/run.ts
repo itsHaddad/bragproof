@@ -1,10 +1,9 @@
 import { execFile } from "node:child_process";
+import { UNPRIVILEGED } from "../attest/confidential-space.ts";
 import { sha256Hex } from "../receipt/canonical.ts";
 import { type CheckResult, type CheckSpec, type Expect, RUNNER_VERSION, type StepResult, specProblems } from "../receipt/types.ts";
 import { McpStdioClient } from "./mcp-client.ts";
 import { installSubject } from "./subject.ts";
-
-const NOBODY = 65534;
 
 /** Lets an unprivileged user read and enter an installed package, without letting it write there. */
 const makeReadable = (dir: string) =>
@@ -42,15 +41,12 @@ export async function runCheck(spec: CheckSpec): Promise<CheckResult> {
     return failAll("install: " + (e as Error).message);
   }
   // The subject gets a bare environment: nothing of the runner's own (tokens, keys) is passed on. When the runner
-  // is root (in the runner container) the subject runs as `nobody`, so it cannot open what only root may open:
+  // is root (in the runner container) the subject runs as `nobody` with no groups, so it cannot open what only root may open:
   // above all the attestation socket, which would let a hostile package mint a token for a result it invents.
   const asRoot = process.getuid?.() === 0;
   if (asRoot) await makeReadable(installed.dir);
-  const client = new McpStdioClient(process.execPath.endsWith("bun") ? "node" : process.execPath, [installed.entry, ...(spec.subject.args ?? [])], {
-    cwd: installed.dir,
-    env: { PATH: process.env.PATH ?? "", HOME: asRoot ? "/tmp" : installed.dir },
-    ...(asRoot ? { uid: NOBODY, gid: NOBODY } : {}),
-  });
+  const command = [...(asRoot ? UNPRIVILEGED : []), "node", installed.entry, ...(spec.subject.args ?? [])];
+  const client = new McpStdioClient(command[0]!, command.slice(1), { cwd: installed.dir, env: { PATH: process.env.PATH ?? "", HOME: asRoot ? "/tmp" : installed.dir } });
   try {
     let tools: string[];
     try {

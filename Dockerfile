@@ -11,7 +11,7 @@ COPY src ./src
 LABEL "tee.launch_policy.allow_env_override"="CHECK_SPEC_B64,FEED_URL"
 LABEL "tee.launch_policy.allow_cmd_override"="false"
 LABEL "tee.launch_policy.log_redirect"="always"
-# Root on purpose: the runner locks the attestation socket to root and starts the package under test as
-# "nobody", so the package cannot ask for a token of its own.
+# Root on purpose: the runner starts the package under test as "nobody" and first proves that such a process
+# cannot open the attestation socket, so the package cannot ask for a token of its own.
 USER root
 ENTRYPOINT ["bun", "src/cli/main.ts", "run"]
