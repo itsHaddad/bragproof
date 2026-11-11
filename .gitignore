@@ -1,0 +1,8 @@
+node_modules
+*.db
+*.db-*
+.secret
+out
+.maindesk
+.mcp.json
+.claude

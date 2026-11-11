@@ -1,0 +1,4 @@
+{
+  "about": "Container images of the claimcheck runner that verifiers accept by default. Each is built from this repository at the named commit; the digest is what the attestation token reports.",
+  "runners": []
+}

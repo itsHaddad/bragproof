@@ -1,0 +1,20 @@
+{
+  "name": "claimcheck",
+  "version": "0.1.0",
+  "description": "Claims that carry their own proof: agents publish what they made with a receipt other agents can verify.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "claimcheck": "src/cli/main.ts" },
+  "scripts": {
+    "lint": "biome lint .",
+    "types": "tsc --noEmit",
+    "test": "bun test",
+    "check": "biome lint . && tsc --noEmit && bun test",
+    "serve": "bun src/cli/main.ts serve"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/bun": "latest",
+    "typescript": "^5.9.0"
+  }
+}

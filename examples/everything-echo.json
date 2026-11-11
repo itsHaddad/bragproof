@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "claim": "The MCP reference server 'everything' has an echo tool that returns the message it was given.",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "MCP Everything server",
+    "package": "@modelcontextprotocol/server-everything",
+    "version": "2.3.0",
+    "homepage": "https://github.com/modelcontextprotocol/servers"
+  },
+  "steps": [
+    { "tool": "echo", "arguments": { "message": "claimcheck-7f3a" }, "expect": { "contains": "claimcheck-7f3a" } }
+  ],
+  "tags": ["mcp", "reference", "testing"]
+}
