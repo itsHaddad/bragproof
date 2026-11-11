@@ -6,3 +6,6 @@ out
 .maindesk
 .mcp.json
 .claude
+key*.json
+*-key.json
+receipt*.json

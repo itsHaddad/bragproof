@@ -1,7 +1,7 @@
 # The claimcheck runner: installs a subject, runs its check and prints an attested receipt.
 # Verifiers accept a run only when the attestation names this image's digest (see runners.json).
-FROM oven/bun:1.2.21-slim AS bun
-FROM node:22.20.0-bookworm-slim
+FROM oven/bun:1.2.21-slim@sha256:9759e7229cd7c2939d960420bdb8dc5dc3b3dda0285f8601226606e5fd97dfdf AS bun
+FROM node:22.20.0-bookworm-slim@sha256:b21fe589dfbe5cc39365d0544b9be3f1f33f55f3c86c87a76ff65a02f8f5848e
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /runner
 COPY package.json runners.json ./
@@ -11,4 +11,7 @@ COPY src ./src
 LABEL "tee.launch_policy.allow_env_override"="CHECK_SPEC_B64,FEED_URL"
 LABEL "tee.launch_policy.allow_cmd_override"="false"
 LABEL "tee.launch_policy.log_redirect"="always"
+# Root on purpose: the runner locks the attestation socket to root and starts the package under test as
+# "nobody", so the package cannot ask for a token of its own.
+USER root
 ENTRYPOINT ["bun", "src/cli/main.ts", "run"]

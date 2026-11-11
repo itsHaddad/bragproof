@@ -8,8 +8,8 @@ export class McpStdioClient {
   private waiting = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   private closed: Error | null = null;
 
-  constructor(command: string, args: string[], opts: { cwd?: string; env?: Record<string, string> } = {}) {
-    this.child = spawn(command, args, { cwd: opts.cwd, env: opts.env, stdio: ["pipe", "pipe", "pipe"] });
+  constructor(command: string, args: string[], opts: { cwd?: string; env?: Record<string, string>; uid?: number; gid?: number } = {}) {
+    this.child = spawn(command, args, { cwd: opts.cwd, env: opts.env, uid: opts.uid, gid: opts.gid, detached: true, stdio: ["pipe", "pipe", "pipe"] });
     this.child.stdout.setEncoding("utf8");
     this.child.stdout.on("data", (chunk: string) => this.onData(chunk));
     this.child.stderr.resume();
@@ -24,6 +24,12 @@ export class McpStdioClient {
 
   private onData(chunk: string) {
     this.buffer += chunk;
+    if (this.buffer.length > 4_000_000) {
+      // A subject that floods its output without ever ending a line is stopped, not buffered for ever.
+      this.buffer = "";
+      this.close();
+      return;
+    }
     let nl = this.buffer.indexOf("\n");
     while (nl >= 0) {
       const line = this.buffer.slice(0, nl).trim();
@@ -99,6 +105,12 @@ export class McpStdioClient {
   }
 
   close() {
+    // The subject leads its own process group, so anything it forked goes with it.
+    try {
+      if (this.child.pid) process.kill(-this.child.pid, "SIGKILL");
+    } catch {
+      /* already gone */
+    }
     try {
       this.child.kill("SIGKILL");
     } catch {

@@ -1,4 +1,4 @@
 {
-  "about": "Container images of the claimcheck runner that verifiers accept by default. Each is built from this repository at the named commit; the digest is what the attestation token reports.",
+  "about": "Container images of the claimcheck runner that verifiers accept by default. Each was built by this repository's 'runner image' workflow from the named commit; the digest is what the attestation token reports. A runner found to be unsound is removed from this list, and receipts made with it stop verifying.",
   "runners": []
 }

@@ -33,20 +33,37 @@ export class FeedDb {
       tags TEXT NOT NULL, pass INTEGER NOT NULL, level TEXT NOT NULL, hardware TEXT,
       search TEXT NOT NULL,
       receipt TEXT NOT NULL)`);
+    this.db.run("CREATE INDEX IF NOT EXISTS posts_by_level ON posts (level, pass, seq)");
   }
 
-  /** Stores a verified receipt. Returns false when the same receipt is already there. */
-  add(receipt: Receipt, level: Level, hardware: string | null): boolean {
+  count(level: Level): number {
+    return (this.db.query("SELECT count(*) AS n FROM posts WHERE level = ?").get(level) as { n: number }).n;
+  }
+
+  /** Stores a verified receipt and returns the level now on record. The same body may arrive twice with
+   * different evidence: attested evidence replaces a self-reported copy, never the other way round, so nobody
+   * can bury a proven post by posting its body first without the proof. */
+  add(receipt: Receipt, level: Level, hardware: string | null): { added: boolean; level: Level } {
+    const existing = this.db.query("SELECT level FROM posts WHERE id = ?").get(receipt.bodyHash) as { level: Level } | null;
+    if (existing) {
+      if (existing.level === "self-reported" && level === "attested") {
+        this.db.query("UPDATE posts SET level = ?, hardware = ?, receipt = ? WHERE id = ?").run(level, hardware, JSON.stringify(receipt), receipt.bodyHash);
+        return { added: true, level };
+      }
+      return { added: false, level: existing.level };
+    }
     const s = receipt.spec;
     const tags = s.tags ?? [];
     const search = [s.claim, s.subject.name, s.subject.package, ...tags, ...s.steps.map((st) => st.tool)].join(" ").toLowerCase();
-    const res = this.db
-      .query("INSERT OR IGNORE INTO posts (id, admitted_at, claim, subject, package, version, tags, pass, level, hardware, search, receipt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+    this.db
+      .query("INSERT INTO posts (id, admitted_at, claim, subject, package, version, tags, pass, level, hardware, search, receipt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
       .run(receipt.bodyHash, new Date().toISOString(), s.claim, s.subject.name, s.subject.package, s.subject.version, JSON.stringify(tags), receipt.result.pass ? 1 : 0, level, hardware, search, JSON.stringify(receipt));
-    return res.changes > 0;
+    return { added: true, level };
   }
 
-  /** Newest first. By default only attested receipts whose check passed: the ones an agent can act on. */
+  /** By default only attested receipts whose check passed: the ones an agent can act on. Newest first, except
+   * when catching up from a cursor (`after`): then oldest first, so a reader that takes a page at a time and
+   * continues from the last row it got misses nothing. */
   find(query: Query = {}): PostRow[] {
     const where: string[] = [];
     const args: (string | number)[] = [];
@@ -62,14 +79,16 @@ export class FeedDb {
     }
     if (query.after !== undefined) {
       where.push("seq > ?");
-      args.push(query.after);
+      args.push(Number.isFinite(query.after) ? Math.trunc(query.after) : 0);
     }
-    for (const term of (query.q ?? "").toLowerCase().split(/\s+/).filter(Boolean).slice(0, 8)) {
+    for (const term of (typeof query.q === "string" ? query.q : "").toLowerCase().split(/\s+/).filter(Boolean).slice(0, 8)) {
       where.push("instr(search, ?) > 0");
       args.push(term);
     }
-    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
-    const sql = `SELECT seq, id, admitted_at, claim, subject, package, version, tags, pass, level, hardware FROM posts ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY seq DESC LIMIT ${limit}`;
+    const asked = Number.isFinite(query.limit) ? Math.trunc(query.limit as number) : 20;
+    const limit = Math.min(Math.max(asked, 1), 100);
+    const order = query.after !== undefined ? "ASC" : "DESC";
+    const sql = `SELECT seq, id, admitted_at, claim, subject, package, version, tags, pass, level, hardware FROM posts ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY seq ${order} LIMIT ${limit}`;
     return (this.db.query(sql).all(...args) as any[]).map((r) => ({ seq: r.seq, id: r.id, admittedAt: r.admitted_at, claim: r.claim, subject: r.subject, package: r.package, version: r.version, tags: JSON.parse(r.tags), pass: !!r.pass, level: r.level, hardware: r.hardware }));
   }
 

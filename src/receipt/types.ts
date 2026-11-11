@@ -73,15 +73,23 @@ const MAX = { claim: 280, name: 80, tool: 120, steps: 20, tags: 8, tag: 32, expe
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isStr = (v: unknown, max: number): v is string => typeof v === "string" && v.length > 0 && v.length <= max;
 
+/** Adds a problem for every key that the format does not define. Nothing unknown may ride along in a receipt:
+ * a reader would take it for part of what was verified. */
+export function extraKeys(obj: Record<string, unknown>, allowed: readonly string[], where: string, p: string[]) {
+  for (const k of Object.keys(obj)) if (!allowed.includes(k)) p.push(`${where} has an unknown field "${k.slice(0, 40)}"`);
+}
+
 /** Returns the problems with a spec; an empty list means it is well formed. */
 export function specProblems(spec: unknown): string[] {
   const p: string[] = [];
   if (!isObj(spec)) return ["spec is not an object"];
+  extraKeys(spec, ["v", "claim", "subject", "steps", "tags"], "spec", p);
   if (spec.v !== FORMAT_VERSION) p.push("spec.v must be 1");
   if (!isStr(spec.claim, MAX.claim)) p.push(`spec.claim must be 1 to ${MAX.claim} characters`);
   const s = spec.subject;
   if (!isObj(s)) p.push("spec.subject is missing");
   else {
+    extraKeys(s, ["kind", "name", "package", "version", "bin", "args", "homepage"], "spec.subject", p);
     if (s.kind !== "mcp-stdio") p.push('spec.subject.kind must be "mcp-stdio"');
     if (!isStr(s.name, MAX.name)) p.push("spec.subject.name is missing or too long");
     if (!isStr(s.package, 214) || !/^(@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*$/.test(s.package as string)) p.push("spec.subject.package must be an npm package name");
@@ -97,6 +105,7 @@ export function specProblems(spec: unknown): string[] {
         p.push(`step ${i} is not an object`);
         return;
       }
+      extraKeys(st, ["tool", "arguments", "expect"], `step ${i}`, p);
       if (!isStr(st.tool, MAX.tool)) p.push(`step ${i}: tool is missing`);
       if (!isObj(st.arguments) || JSON.stringify(st.arguments).length > MAX.args) p.push(`step ${i}: arguments must be a small object`);
       const e = st.expect;
@@ -104,6 +113,7 @@ export function specProblems(spec: unknown): string[] {
         p.push(`step ${i}: expect is missing`);
         return;
       }
+      extraKeys(e, ["equals", "contains", "matches"], `step ${i} expect`, p);
       const kinds = (["equals", "contains", "matches"] as const).filter((k) => e[k] !== undefined);
       if (kinds.length !== 1) p.push(`step ${i}: expect needs exactly one of equals, contains, matches`);
       for (const k of kinds) if (typeof e[k] !== "string" || (e[k] as string).length > MAX.expect) p.push(`step ${i}: expect.${k} must be a string`);
@@ -120,18 +130,26 @@ export function specProblems(spec: unknown): string[] {
 }
 
 /** Shape check of a receipt's result; the meaning is checked by verifyReceipt. */
-export function resultProblems(result: unknown, stepCount: number): string[] {
+export function resultProblems(result: unknown, spec: CheckSpec): string[] {
   const p: string[] = [];
   if (!isObj(result)) return ["result is not an object"];
+  extraKeys(result, ["pass", "subjectIntegrity", "lockHash", "steps", "startedAt", "finishedAt", "runnerVersion"], "result", p);
   if (typeof result.pass !== "boolean") p.push("result.pass must be true or false");
   if (!isStr(result.subjectIntegrity, 200)) p.push("result.subjectIntegrity is missing");
   if (!isStr(result.lockHash, 64)) p.push("result.lockHash is missing");
   for (const k of ["startedAt", "finishedAt"] as const) if (!isStr(result[k], 40) || Number.isNaN(Date.parse(result[k] as string))) p.push(`result.${k} is not a time`);
   if (!isStr(result.runnerVersion, 20)) p.push("result.runnerVersion is missing");
-  if (!Array.isArray(result.steps) || result.steps.length !== stepCount) p.push("result.steps must have one entry per spec step");
+  if (!Array.isArray(result.steps) || result.steps.length !== spec.steps.length) p.push("result.steps must have one entry per spec step");
   else
     result.steps.forEach((st, i) => {
-      if (!isObj(st) || typeof st.pass !== "boolean" || !isStr(st.tool, MAX.tool) || typeof st.outputHash !== "string" || typeof st.outputPreview !== "string" || st.outputPreview.length > 200) p.push(`result step ${i} is malformed`);
+      if (!isObj(st)) {
+        p.push(`result step ${i} is malformed`);
+        return;
+      }
+      extraKeys(st, ["tool", "pass", "outputHash", "outputPreview", "error"], `result step ${i}`, p);
+      const okError = st.error === undefined || (typeof st.error === "string" && st.error.length <= 200);
+      if (typeof st.pass !== "boolean" || typeof st.outputHash !== "string" || !/^[0-9a-f]{64}$/.test(st.outputHash) || typeof st.outputPreview !== "string" || st.outputPreview.length > 200 || !okError) p.push(`result step ${i} is malformed`);
+      if (st.tool !== spec.steps[i]!.tool) p.push(`result step ${i} is for another tool than the spec's step`);
     });
   return p;
 }

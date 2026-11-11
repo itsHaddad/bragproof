@@ -38,14 +38,14 @@ if (!verdict.ok || !verdict.pass || (verdict.level !== "attested" && !acceptSelf
   process.exit(2);
 }
 
-console.log("3. installing the same package and checking it is the one that was tested");
+console.log("3. installing the same package version and comparing its tarball with the receipt's");
 const installed = await installSubject(receipt.spec.subject);
 try {
   if (installed.integrity !== receipt.result.subjectIntegrity) {
     console.log("   the package on the registry is not the one in the receipt; stopping");
     process.exit(2);
   }
-  console.log("   same tarball: " + installed.integrity.slice(0, 24) + "...");
+  console.log("   same tarball: " + installed.integrity.slice(0, 24) + "... (its dependencies are resolved afresh and may differ)");
   console.log("4. using it");
   const client = new McpStdioClient("node", [installed.entry, ...(receipt.spec.subject.args ?? [])], { cwd: installed.dir, env: { PATH: process.env.PATH ?? "", HOME: installed.dir } });
   try {

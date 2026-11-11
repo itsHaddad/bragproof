@@ -50,6 +50,7 @@ export const goodClaims = (bodyHash: string, finishedAt: string): Record<string,
   eat_nonce: [bodyHash],
   swname: "CONFIDENTIAL_SPACE",
   dbgstat: "disabled-since-boot",
+  secboot: true,
   hwmodel: "GCP_INTEL_TDX",
   submods: { container: { image_digest: RUNNER, image_reference: "example/runner@" + RUNNER }, gce: { zone: "europe-west4-a" } },
 });

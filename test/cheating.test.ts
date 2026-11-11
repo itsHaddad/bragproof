@@ -109,6 +109,36 @@ describe("cheating", () => {
     await refused(r, /signature/);
   });
 
+  test("a VM that did not start with secure boot", async () => {
+    await refused(attestedReceipt(attestor, (c) => (c.secboot = false)), /secure boot/);
+  });
+
+  test("claims of the wrong type standing in for the right value", async () => {
+    await refused(attestedReceipt(attestor, (c) => (c.submods.container.image_digest = [RUNNER])), /not a runner/);
+    await refused(attestedReceipt(attestor, (c) => (c.hwmodel = ["GCP_INTEL_TDX"])), /hardware/);
+    await refused(attestedReceipt(attestor, (c) => (c.iat = String(c.iat))), /time of the run/);
+  });
+
+  test("extra fields riding along with a real receipt", async () => {
+    await refused({ ...attestedReceipt(attestor), notes: "trust me" }, /unknown field/);
+    const inSpec = spec() as any;
+    inSpec.endorsedBy = "someone important";
+    await refused(attestedReceipt(attestor, () => {}, inSpec), /unknown field/);
+    const inResult = result() as any;
+    inResult.steps[0].note = "also does everything else";
+    await refused(attestedReceipt(attestor, () => {}, spec(), inResult), /unknown field/);
+  });
+
+  test("a result whose steps are for other tools than the spec's", async () => {
+    await refused(attestedReceipt(attestor, () => {}, spec(), result({ steps: [{ tool: "delete_everything", pass: true, outputHash: "d".repeat(64), outputPreview: "" }] })), /another tool/);
+  });
+
+  test("a number that cannot be hashed is a refusal, not a crash", async () => {
+    const r = selfReported();
+    (r.spec.steps[0]!.arguments as any).n = Number.POSITIVE_INFINITY;
+    await refused(r, /could not be read/);
+  });
+
   test("an overall pass that its own steps contradict", async () => {
     const lying = result({ pass: true, steps: [{ tool: "echo", pass: false, outputHash: "d".repeat(64), outputPreview: "" }] });
     await refused(attestedReceipt(attestor, () => {}, spec(), lying), /disagrees/);

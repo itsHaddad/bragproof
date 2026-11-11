@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { insideConfidentialSpace, lockSocket } from "../attest/confidential-space.ts";
 import { runCheck } from "../check/run.ts";
 import { FeedDb } from "../feed/db.ts";
 import { feedHandler } from "../feed/server.ts";
@@ -10,12 +11,14 @@ const HELP = `claimcheck: claims that carry their own proof
 
   claimcheck run <spec.json> [--out receipt.json] [--post <feed-url>]
       Install the subject, run the check, write a receipt. Inside a confidential VM the receipt is attested.
-  claimcheck verify <receipt.json | feed-url/v1/posts/id> [--runner sha256:...]
-      Check a receipt yourself. Exit 0: holds and the check passed. 1: the check failed. 2: do not believe it.
+  claimcheck verify <receipt.json | feed-url/v1/posts/id> [--runner sha256:...] [--accept-self-reported]
+      Check a receipt yourself. Exit 0: attested and the check passed. 1: the check failed. 2: do not believe
+      it. 3: intact but only self-reported (0 with --accept-self-reported).
   claimcheck post <receipt.json> --feed <feed-url>
   claimcheck search <words...> --feed <feed-url> [--any]
   claimcheck new --feed <feed-url> [--cursor N]
-  claimcheck serve [--port 8799] [--db feed.db] [--origin https://...]
+  claimcheck serve [--port 8799] [--db feed.db] [--origin https://...] [--self-reported-cap N]
+      --self-reported-cap: how many unproven receipts to keep (default 1000; 0 for a public feed).
 
   In a runner container: CHECK_SPEC_B64 holds the spec, FEED_URL (optional) is where the receipt is posted.`;
 
@@ -62,6 +65,7 @@ async function main() {
   if (cmd === "run") {
     const fromEnv = process.env.CHECK_SPEC_B64;
     const spec = (rest[0] ? await readJson(rest[0]) : fromEnv ? JSON.parse(Buffer.from(fromEnv, "base64").toString("utf8")) : need(undefined, "run needs a spec file")) as CheckSpec;
+    if (insideConfidentialSpace()) lockSocket();
     const result = await runCheck(spec);
     const receipt = await makeReceipt(spec, result);
     const out = flag(flags, "out");
@@ -85,7 +89,9 @@ async function main() {
     if (extra) policy.runnerDigests.push(extra);
     const verdict = await verifyReceipt(receipt, policy);
     console.log(JSON.stringify(verdict, null, 2));
-    return !verdict.ok ? 2 : verdict.pass ? 0 : 1;
+    if (!verdict.ok) return 2;
+    if (!verdict.pass) return 1;
+    return verdict.level === "attested" || flags["accept-self-reported"] ? 0 : 3;
   }
 
   if (cmd === "post") {
@@ -109,9 +115,16 @@ async function main() {
 
   if (cmd === "serve") {
     const port = Number(flag(flags, "port") ?? process.env.PORT ?? 8799);
-    const feed = new FeedService(new FeedDb(flag(flags, "db") ?? "feed.db"));
+    const cap = flag(flags, "self-reported-cap");
+    const feed = new FeedService(new FeedDb(flag(flags, "db") ?? "feed.db"), { selfReportedCap: cap !== undefined && /^\d+$/.test(cap) ? Number(cap) : undefined });
     const handle = feedHandler(feed, { publicOrigin: flag(flags, "origin") });
-    const server = Bun.serve({ port, fetch: (req, srv) => handle(req, srv.requestIP(req)?.address) });
+    const server = Bun.serve({
+      port,
+      maxRequestBodySize: 100_000,
+      development: false,
+      fetch: (req, srv) => handle(req, srv.requestIP(req)?.address),
+      error: () => Response.json({ error: "the feed could not answer this request" }, { status: 500 }),
+    });
     console.error(`claimcheck feed on http://localhost:${server.port}`);
     return await new Promise<number>(() => {});
   }

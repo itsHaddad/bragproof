@@ -1,7 +1,7 @@
 import { type AttestedFacts, DEFAULT_HARDWARE, fetchToken, insideConfidentialSpace, type Policy, verifyToken } from "../attest/confidential-space.ts";
 import type { JwksSource } from "../attest/jwt.ts";
 import { hashOf } from "./canonical.ts";
-import { type CheckResult, type CheckSpec, type Evidence, FORMAT_VERSION, type Receipt, resultProblems, specProblems } from "./types.ts";
+import { type CheckResult, type CheckSpec, type Evidence, extraKeys, FORMAT_VERSION, type Receipt, resultProblems, specProblems } from "./types.ts";
 import trusted from "../../runners.json" with { type: "json" };
 
 export const bodyHashOf = (spec: CheckSpec, result: CheckResult): string => hashOf({ v: FORMAT_VERSION, spec, result });
@@ -10,7 +10,15 @@ export const bodyHashOf = (spec: CheckSpec, result: CheckResult): string => hash
  * else it is marked as carrying none. */
 export async function makeReceipt(spec: CheckSpec, result: CheckResult): Promise<Receipt> {
   const bodyHash = bodyHashOf(spec, result);
-  const evidence: Evidence = insideConfidentialSpace() ? { kind: "gcp-confidential-space", token: await fetchToken(bodyHash) } : { kind: "none" };
+  let evidence: Evidence = { kind: "none" };
+  if (insideConfidentialSpace()) {
+    try {
+      evidence = { kind: "gcp-confidential-space", token: await fetchToken(bodyHash) };
+    } catch (e) {
+      // Better an honest unattested receipt than none: the run still happened, it just cannot be proven.
+      console.error("no attestation token, the receipt is self-reported: " + (e as Error).message);
+    }
+  }
   return { v: 1, type: "claimcheck/receipt", spec, result, bodyHash, evidence };
 }
 
@@ -26,10 +34,28 @@ export const defaultPolicy = (): Policy => ({ runnerDigests: (trusted as { runne
  * check out, and nothing in it should be believed. `ok: true` with level "self-reported" means it is intact but
  * is only the runner's word. `pass` is what the check found, and matters only when `ok` is true. */
 export async function verifyReceipt(receipt: unknown, policy: Policy = defaultPolicy(), keys?: JwksSource): Promise<Verdict> {
+  try {
+    return await verifyUnsafe(receipt, policy, keys);
+  } catch (e) {
+    // Whatever made the verifier throw (a number that cannot be hashed, a shape nobody foresaw) is a refusal.
+    return { ok: false, reason: "the receipt could not be read: " + String((e as Error).message).slice(0, 120) };
+  }
+}
+
+/** The receipt reduced to the fields the format defines, in a fixed order: what a feed stores and serves. */
+export function normalForm(r: Receipt): Receipt {
+  const evidence: Evidence = r.evidence.kind === "gcp-confidential-space" ? { kind: r.evidence.kind, token: r.evidence.token } : { kind: "none" };
+  return { v: 1, type: "claimcheck/receipt", spec: r.spec, result: r.result, bodyHash: r.bodyHash, evidence };
+}
+
+async function verifyUnsafe(receipt: unknown, policy: Policy, keys?: JwksSource): Promise<Verdict> {
   const r = receipt as Receipt;
-  if (typeof r !== "object" || r === null || r.v !== 1 || r.type !== "claimcheck/receipt") return { ok: false, reason: "not a claimcheck receipt" };
-  const problems = specProblems(r.spec);
-  if (!problems.length) problems.push(...resultProblems(r.result, r.spec.steps.length));
+  if (typeof r !== "object" || r === null || Array.isArray(r) || r.v !== 1 || r.type !== "claimcheck/receipt") return { ok: false, reason: "not a claimcheck receipt" };
+  const problems: string[] = [];
+  extraKeys(r as unknown as Record<string, unknown>, ["v", "type", "spec", "result", "bodyHash", "evidence"], "receipt", problems);
+  if (typeof r.evidence === "object" && r.evidence !== null) extraKeys(r.evidence as Record<string, unknown>, r.evidence.kind === "none" ? ["kind"] : ["kind", "token"], "evidence", problems);
+  if (!problems.length) problems.push(...specProblems(r.spec));
+  if (!problems.length) problems.push(...resultProblems(r.result, r.spec));
   if (problems.length) return { ok: false, reason: problems[0]! };
   if (bodyHashOf(r.spec, r.result) !== r.bodyHash) return { ok: false, reason: "the spec or result was changed after the receipt was made" };
   if (r.result.pass !== r.result.steps.every((s) => s.pass)) return { ok: false, reason: "the overall result disagrees with its steps" };
