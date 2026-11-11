@@ -1,4 +1,11 @@
 {
   "about": "Container images of the claimcheck runner that verifiers accept by default. Each was built by this repository's 'runner image' workflow from the named commit; the digest is what the attestation token reports. A runner found to be unsound is removed from this list, and receipts made with it stop verifying.",
-  "runners": []
+  "runners": [
+    {
+      "digest": "sha256:b6e04cadae55ff29d00223ea82319c5cab72cb5c3a38cf9ec98529b564d16ba1",
+      "image": "ghcr.io/itshaddad/claimcheck-runner",
+      "commit": "fb5112fd27333135cfa1b422d3afcbe7098ecb41",
+      "note": "First runner with the package jail. Earlier images are not accepted: the package under test could reach the attestation socket."
+    }
+  ]
 }
