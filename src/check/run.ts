@@ -1,7 +1,8 @@
 import { execFile } from "node:child_process";
-import { UNPRIVILEGED } from "../attest/confidential-space.ts";
+import { insideConfidentialSpace, SOCKET } from "../attest/confidential-space.ts";
 import { sha256Hex } from "../receipt/canonical.ts";
 import { type CheckResult, type CheckSpec, type Expect, RUNNER_VERSION, type StepResult, specProblems } from "../receipt/types.ts";
+import { assertJailBlocks, buildJail } from "./jail.ts";
 import { McpStdioClient } from "./mcp-client.ts";
 import { installSubject } from "./subject.ts";
 
@@ -34,19 +35,29 @@ export async function runCheck(spec: CheckSpec): Promise<CheckResult> {
     runnerVersion: RUNNER_VERSION,
   });
 
+  // When the runner is root (in the runner container) the package runs in a jail, as "nobody": it cannot open
+  // what the runner can, above all the attestation socket, which would let a hostile package mint a token for
+  // a result it invents. In a confidential VM this is proven by a probe before any package code runs; if the
+  // proof fails, the run stops: no attested receipt may come out of a run the package could have forged.
+  const jail = process.getuid?.() === 0 ? await buildJail() : null;
+  if (insideConfidentialSpace()) {
+    if (!jail) throw new Error("in a confidential VM the runner must be root, so the package can run as a lesser user");
+    assertJailBlocks(jail, SOCKET);
+  }
   let installed: Awaited<ReturnType<typeof installSubject>>;
   try {
-    installed = await installSubject(spec.subject);
+    installed = await installSubject(spec.subject, jail?.appDir);
+    if (jail) await makeReadable(jail.appDir);
   } catch (e) {
+    await jail?.remove();
     return failAll("install: " + (e as Error).message);
   }
-  // The subject gets a bare environment: nothing of the runner's own (tokens, keys) is passed on. When the runner
-  // is root (in the runner container) the subject runs as `nobody` with no groups, so it cannot open what only root may open:
-  // above all the attestation socket, which would let a hostile package mint a token for a result it invents.
-  const asRoot = process.getuid?.() === 0;
-  if (asRoot) await makeReadable(installed.dir);
-  const command = [...(asRoot ? UNPRIVILEGED : []), "node", installed.entry, ...(spec.subject.args ?? [])];
-  const client = new McpStdioClient(command[0]!, command.slice(1), { cwd: installed.dir, env: { PATH: process.env.PATH ?? "", HOME: asRoot ? "/tmp" : installed.dir } });
+  // The subject gets a bare environment: nothing of the runner's own (tokens, keys) is passed on.
+  const args = spec.subject.args ?? [];
+  const command = jail ? jail.command(installed.entryInDir, args) : ["node", installed.entry, ...args];
+  // In the jail, PATH also has to lead to `chroot` itself, which starts the package.
+  const env = jail ? { PATH: "/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", HOME: "/tmp" } : { PATH: process.env.PATH ?? "", HOME: installed.dir };
+  const client = new McpStdioClient(command[0]!, command.slice(1), { cwd: jail ? "/" : installed.dir, env });
   try {
     let tools: string[];
     try {
@@ -74,5 +85,6 @@ export async function runCheck(spec: CheckSpec): Promise<CheckResult> {
   } finally {
     client.close();
     await installed.remove();
+    await jail?.remove();
   }
 }
