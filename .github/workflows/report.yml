@@ -69,7 +69,7 @@ jobs:
           if [ "$SOURCE" = queue ]; then
             # Taking from the queue counts an attempt against each package, so one that never yields a report
             # is given up on. Only this workflow may take; the token says who is asking.
-            curl -fsS --max-time 20 -H "authorization: Bearer $(oidc bragproof-queue)" "$FEED/v1/queue?limit=40&take=1" | jq -r '.packages[]' > list.txt
+            curl -fsS --max-time 20 -H "authorization: Bearer $(oidc bragproof-queue)" "$FEED/v1/queue?limit=20&take=1" | jq -r '.packages[]' > list.txt
           else
             echo "$SOURCE" | grep -qE '^[a-z0-9][a-z0-9._-]*\.json$' || { echo "bad source"; exit 1; }
             jq -r '.[]' "tools/$SOURCE" | awk -v n="$SHARDS" -v s="$SHARD" 'NR % n == s' > list.txt
@@ -95,7 +95,7 @@ jobs:
             version=$(jq -r '.version // empty' latest.json 2>/dev/null || true)
             : > cap.txt
             if [ "$code" = 200 ] && echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9_.-]+)?$'; then
-              sudo tcpdump -i docker0 -nn -l -p 'udp or (tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0)' > cap.txt 2>/dev/null &
+              sudo tcpdump -i docker0 -nn -l -p 'udp or tcp port 53 or (tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0)' > cap.txt 2>/dev/null &
               sleep 2
               line=$(timeout -k 5 300 docker run --rm --init --name bp-run --security-opt no-new-privileges --memory 2g --pids-limit 512 --entrypoint bun runner src/cli/main.ts report "$name@$version" 2>/dev/null </dev/null | grep -m1 '^BRAGPROOF-REPORT:' | cut -d: -f2- || true)
               # Nothing of this package may still be running when the next one is watched.
@@ -112,9 +112,12 @@ jobs:
             # Every kind of name lookup; connections to addresses that no lookup returned (an address written
             # into the code); and other traffic that is not a lookup at all.
             { grep -oE ' [A-Z][A-Z0-9]*\? [^ ]+' cap.txt || true; } | awk '{print $2}' | sed 's/\.$//' | { grep -E '^[A-Za-z0-9._-]{1,253}$' || true; } | sort -u > names.txt
-            { grep -oE ' A [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' cap.txt || true; } | awk '{print $2}' | sort -u > answers.txt
-            { grep -E 'Flags \[S\]' cap.txt || true; } | { grep -oE '> [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1 \2/' | sort -u | while read -r ip port; do grep -qxF "$ip" answers.txt || echo "$ip:$port"; done > direct.txt
-            { grep -E ' UDP, length' cap.txt || true; } | { grep -oE '> [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:' || true; } | { grep -vE '\.(53|5353):$' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1:\2\/udp/' | sort -u >> direct.txt
+            # Answers count only when they come from a resolver (port 53) that is not the container itself, so a
+            # package cannot vouch for an address by sending itself a made-up answer.
+            { grep -E ' IP [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.53 > ' cap.txt || true; } | { grep -vE ' IP 172\.(1[6-9]|2[0-9]|3[01])\.' || true; } | { grep -oE ' A [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' || true; } | awk '{print $2}' | sort -u > answers.txt
+            { grep -E 'Flags \[S\]' cap.txt || true; } | { grep -oE '> [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1 \2/' | sort -u | while read -r ip port; do [ "$port" = 53 ] || grep -qxF "$ip" answers.txt || echo "$ip:$port"; done > direct.txt
+            # Other UDP the container sent (not replies to it), to addresses no lookup returned.
+            { grep -E ' IP 172\.(1[6-9]|2[0-9]|3[01])\.[0-9.]+ > .* UDP, length' cap.txt || true; } | { grep -oE '> [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1 \2/' | sort -u | while read -r ip port; do [ "$port" = 53 ] || [ "$port" = 5353 ] || grep -qxF "$ip" answers.txt || echo "$ip:$port/udp"; done >> direct.txt
             names=$({ grep -vxF 'registry.npmjs.org' names.txt || true; } | head -59 | { cat; grep -xF 'registry.npmjs.org' names.txt || true; } | jq -R . | jq -sc .)
             conns=$(head -60 direct.txt | jq -R . | jq -sc .)
             # The capture is believed only when it saw the install's own lookup of the registry.

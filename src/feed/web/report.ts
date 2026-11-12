@@ -10,7 +10,7 @@ export const outcomeBadge = (o: Outcome) => `<span class="badge ${tone(o)}" titl
 
 /** One report as a card: the line an agent or a person scans when choosing. */
 export function reportCard(r: ReportRow): string {
-  const bits = [r.outcome === "started" ? plural(r.tools, "tool") : "", r.contacts ? `${plural(r.contacts, "host")} at start` : r.outcome === "started" ? "0 hosts at start" : "", r.serious ? `<span class="badge weak">tool text about the user, other tools or private files</span>` : ""].filter(Boolean);
+  const bits = [r.outcome === "started" ? plural(r.tools, "tool") : "", r.contacts > 0 ? `contacts ${plural(r.contacts, "host")}` : r.contacts === 0 && r.outcome === "started" ? "contacts 0 hosts" : "", r.serious ? `<span class="badge weak">tool text about the user, other tools or private files</span>` : ""].filter(Boolean);
   return `<article class="card claim">
 <h3 class="mono"><a href="${reportHref(r.package)}">${esc(r.package)}</a> <span class="muted small">${esc(r.version)}</span></h3>
 <div class="meta">${outcomeBadge(r.outcome)}${bits.map((b) => (b.startsWith("<") ? b : `<span class="nw">${b}</span>`)).join("")}<span class="nw">run ${day(r.ranAt)}</span></div>
@@ -33,7 +33,7 @@ export function reportPage(d: ReportDetail, claims: ClaimRow[], origin: string):
   const orders = s.flags.filter((f) => f.kind === "orders" || f.kind === "very-long");
   const facts = [
     [started ? String(s.tools) : "", "tools listed"],
-    [r.network ? String(s.contacts.length) : "", "hosts contacted at start"],
+    [r.network ? String(s.contacts.length) : "", "hosts contacted"],
     [r.install.ok ? String(s.wrote) : "", "files written"],
     [r.start.ms !== undefined && started ? (r.start.ms / 1000).toFixed(1) + " s" : "", "to start"],
     [r.install.deps !== undefined ? String(r.install.deps) : "", "dependencies"],
@@ -41,7 +41,7 @@ export function reportPage(d: ReportDetail, claims: ClaimRow[], origin: string):
   const few = (xs: string[]) => xs.slice(0, 3).map((x) => `<code>${esc(x)}</code>`).join(", ") + (xs.length > 3 ? ` +${xs.length - 3}` : "");
   const reason = started ? "" : saidFirst(r);
   const wants = started ? "nothing, to start" : s.needs.length ? few(s.needs) : reason ? `<q>${esc(reason)}</q>` : "not said";
-  const answer = r.install.ok ? `<p class="answer"><b>Wants:</b> ${wants}${r.network ? ` <span class="sep">·</span> <b>Contacts at start:</b> ${s.contacts.length ? few(s.contacts) : "nothing"}` : ""}</p>` : "";
+  const answer = r.install.ok ? `<p class="answer"><b>Wants:</b> ${wants}${r.network ? ` <span class="sep">·</span> <b>Contacts:</b> ${s.contacts.length ? few(s.contacts) : "nothing"}` : ""}</p>` : "";
   const contacted = `<h2>What it contacted</h2>
 ${!r.network ? '<p class="muted">Not recorded for this run.</p>' : s.contacts.length ? `<ul>${s.contacts.map((n) => `<li><code>${esc(n)}</code>${hostNote(n) ? ` <span class="muted">${hostNote(n)}</span>` : ""}</li>`).join("")}</ul><p class="small muted">Hosts it looked up or connected to while installing and starting with no input, watched from outside its sandbox. The npm registry is left out. Says nothing about what its tools contact when called.</p>` : '<p>Nothing besides the npm registry it was installed from. <span class="muted">Watched from outside its sandbox while it was installed and started with no input. Its tools may still contact things when called.</span></p>'}`;
   const prev = history.find((h) => h.version !== r.version);
@@ -98,7 +98,7 @@ ${history.length > 1 ? `<h2>Versions reported</h2><div class="scroll"><table><th
 <p><img src="/badge/${esc(r.package)}.svg" alt="Bragproof: ${esc(outcomeLabel[s.outcome])}" height="20"></p>
 <pre class="cmd">${esc(`[![Bragproof](${badgeUrl})](${origin}${reportHref(r.package)})`)}</pre>
 <p class="small muted">New version out? <a href="/publish">Ask for a fresh report</a>.</p>`;
-  return page({ title: `${r.package}: ${outcomeLabel[s.outcome].toLowerCase()} · Bragproof`, origin, path: "", body, description: `${r.package}@${r.version}: ${outcomeLabel[s.outcome]}. ${started ? plural(s.tools, "tool") + ", " : ""}${s.contacts.length} hosts contacted at start. A run report anyone can check.`, alternate: `/v1/reports/${r.package}` });
+  return page({ title: `${r.package}: ${outcomeLabel[s.outcome].toLowerCase()} · Bragproof`, origin, path: "", body, description: `${r.package}@${r.version}: ${outcomeLabel[s.outcome]}. ${started ? plural(s.tools, "tool") + ", " : ""}${r.network ? `${s.contacts.length} hosts contacted while installing and starting. ` : ""}A run report anyone can check.`, alternate: `/v1/reports/${r.package}` });
 }
 
 /** The page for a package nobody has reported yet: the way in for a maker. */

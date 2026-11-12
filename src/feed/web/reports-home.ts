@@ -24,7 +24,7 @@ export function homePage(o: { origin: string; rows: ReportRow[]; state: State; q
 <div class="facts">
 <div class="fact"><b>${o.state.total}</b><span>servers reported</span></div>
 <div class="fact"><b>${pct(started, o.state.total)}</b><span>start with no setup</span></div>
-<div class="fact"><b>${o.state.contacting}</b><span>contact something just by starting</span></div>
+<div class="fact"><b>${o.state.contacting}</b><span>contact something just from being installed and started</span></div>
 <div class="fact"><b>${o.state.serious}</b><span>have tool text about the user, other tools or private files</span></div>
 </div>
 <p><a class="button quiet" href="/publish">Made one? Get it listed</a> <a class="small" style="margin-left:8px" href="/state">The numbers in full</a></p>`;

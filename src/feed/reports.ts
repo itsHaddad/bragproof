@@ -8,6 +8,7 @@ import type { Executor } from "./store.ts";
 /** Run reports in the feed: one per package version, admitted only with a token that proves the report
  * workflow made it. Also the queue of packages people asked to have reported. */
 
+/** `contacts` is -1 when the network was not recorded for the run. */
 export type ReportRow = { package: string; version: string; ranAt: string; outcome: Outcome; tools: number; contacts: number; flags: number; serious: number; toolsHash: string };
 export type ReportDetail = { report: Report; summary: Summary; token: string; history: ReportRow[] };
 export type State = { total: number; /** Packages with no start command: not servers, so not counted. */ leftOut: number; outcomes: { outcome: Outcome; n: number }[]; contacting: number; flagged: number; serious: number; hosts: { name: string; n: number }[]; needs: { name: string; n: number }[] };
@@ -76,9 +77,9 @@ export class ReportBook {
     const stored = (await this.all("SELECT version, outcome, ran_at FROM reports WHERE package = ?", [r.package])) as { version: string; outcome: string; ran_at: string }[];
     const same = stored.find((x) => x.version === r.version);
     // A run that found nothing must not hide one that did: a failed lookup of a package already reported, or a
-    // run that did not finish, where the same version has a real report. An older run never replaces a newer one,
+    // run that did not finish, where the package has a real report of any version. An older run never replaces a newer one,
     // so a report and its token cannot be sent again later to undo a fresh report.
-    const keep = (s.outcome === "not-found" && stored.length > 0) || (s.outcome === "timed-out" && same !== undefined && same.outcome !== "timed-out") || (same !== undefined && same.ran_at >= r.ranAt);
+    const keep = (s.outcome === "not-found" && stored.length > 0) || (s.outcome === "timed-out" && stored.some((x) => x.outcome !== "timed-out" && x.outcome !== "not-found")) || (same !== undefined && same.ran_at >= r.ranAt);
     if (keep) {
       await done();
       return { ok: true, package: r.package, version: r.version, outcome: s.outcome, kept: false };
@@ -86,7 +87,7 @@ export class ReportBook {
     await this.db.run(
       `INSERT INTO reports (package, version, ran_at, admitted_at, latest, outcome, tools, contacts, flags, serious, tools_hash, contact_names, need_names, search, names, report, token) VALUES (?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?)
        ON CONFLICT (package, version) DO UPDATE SET latest = 1, ran_at = excluded.ran_at, admitted_at = excluded.admitted_at, outcome = excluded.outcome, tools = excluded.tools, contacts = excluded.contacts, flags = excluded.flags, serious = excluded.serious, tools_hash = excluded.tools_hash, contact_names = excluded.contact_names, need_names = excluded.need_names, search = excluded.search, names = excluded.names, report = excluded.report, token = excluded.token`.replace(/\s+/g, " "),
-      [r.package, r.version, r.ranAt, now, s.outcome, s.tools, s.contacts.length, s.flags.length, serious, r.toolsHash, JSON.stringify(s.contacts), JSON.stringify(s.needs), search, [r.package, ...r.tools.map((t) => t.name)].join(" ").toLowerCase().slice(0, 20_000), reportText as string, token as string],
+      [r.package, r.version, r.ranAt, now, s.outcome, s.tools, r.network ? s.contacts.length : -1, s.flags.length, serious, r.toolsHash, JSON.stringify(s.contacts), JSON.stringify(s.needs), search, [r.package, ...r.tools.map((t) => t.name)].join(" ").toLowerCase().slice(0, 20_000), reportText as string, token as string],
     );
     // The version reported last is the one shown for the package. If this step fails the package shows twice
     // until its next report, which is better than not at all.
@@ -147,7 +148,7 @@ export class ReportBook {
     const outcomes = (await this.all("SELECT outcome, count(*) AS n FROM reports WHERE latest = 1 AND outcome NOT IN ('not-found', 'no-start-command') GROUP BY outcome ORDER BY n DESC")).map((r) => ({ outcome: r.outcome as Outcome, n: Number(r.n) }));
     const c = (await this.all("SELECT count(*) AS total, sum(contacts > 0) AS contacting, sum(flags > 0) AS flagged, sum(serious > 0) AS serious FROM reports WHERE latest = 1 AND outcome NOT IN ('not-found', 'no-start-command')"))[0] ?? {};
     const leftOut = Number((await this.all("SELECT count(*) AS n FROM reports WHERE latest = 1 AND outcome = 'no-start-command'"))[0]?.n ?? 0);
-    const top = async (column: string) => (await this.all(`SELECT j.value AS name, count(*) AS n FROM reports r, json_each(r.${column}) j WHERE r.latest = 1 GROUP BY j.value ORDER BY n DESC, name ASC LIMIT 15`)).map((r) => ({ name: String(r.name), n: Number(r.n) }));
+    const top = async (column: string) => (await this.all(`SELECT j.value AS name, count(*) AS n FROM reports r, json_each(r.${column}) j WHERE r.latest = 1 AND r.outcome NOT IN ('not-found', 'no-start-command') GROUP BY j.value ORDER BY n DESC, name ASC LIMIT 15`)).map((r) => ({ name: String(r.name), n: Number(r.n) }));
     return { total: Number(c.total ?? 0), leftOut, outcomes, contacting: Number(c.contacting ?? 0), flagged: Number(c.flagged ?? 0), serious: Number(c.serious ?? 0), hosts: await top("contact_names"), needs: await top("need_names") };
   }
 

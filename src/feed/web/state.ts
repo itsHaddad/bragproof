@@ -17,7 +17,7 @@ export function statePage(s: State, origin: string): string {
 <p class="lede">What happened when ${s.total} MCP servers from npm were each installed on a clean machine and started with no configuration. Live numbers: they change as reports come in.</p>
 <div class="facts">
 <div class="fact"><b>${pct(started, s.total)}%</b><span>start with no setup (${started} of ${s.total})</span></div>
-<div class="fact"><b>${s.contacting}</b><span>contact something just by starting</span></div>
+<div class="fact"><b>${s.contacting}</b><span>contact something just from being installed and started</span></div>
 <div class="fact"><b>${s.flagged}</b><span>have tool text with commands in capitals or other unusual wording</span></div>
 <div class="fact"><b>${s.serious}</b><span>have tool text about the user, other tools or private files</span></div>
 </div>
@@ -26,7 +26,7 @@ export function statePage(s: State, origin: string): string {
 <div class="scroll"><table class="bars"><tbody>${bars}</tbody></table></div>
 <p class="small"><a href="/?show=started#results">Browse the ones that start</a> · <a href="/?show=needs-setup#results">the ones that need setup</a></p>
 
-<h2>What they contact just by starting</h2>
+<h2>What they contact when installed and started</h2>
 ${list(s.hosts, "Nothing recorded yet.")}
 <p class="small muted">Hosts looked up or connected to while a server was installed and started with no input, watched from outside its sandbox. The npm registry is left out. <a href="/?show=contacts#results">Which servers</a></p>
 
@@ -44,7 +44,7 @@ ${s.leftOut ? `<li>${s.leftOut} packages that turned out to have no start comman
 <li>A server that needs a key is not broken. "Needs setup" is a fact for whoever is about to use it, not a mark against it.</li>
 </ul>
 <p>Every report links to the public run that made it and can be checked without trusting this site. <a href="/about#check">How</a> · <a href="${REPO}">Source</a> · <a href="/v1/state">These numbers as JSON</a></p>`;
-  return page({ title: "The state of MCP servers · Bragproof", origin, path: "/state", body, description: `${pct(started, s.total)}% of ${s.total} MCP servers from npm start with no setup. ${s.contacting} contact something just by starting. Live numbers from checkable runs.`, alternate: "/v1/state" });
+  return page({ title: "The state of MCP servers · Bragproof", origin, path: "/state", body, description: `${pct(started, s.total)}% of ${s.total} MCP servers from npm start with no setup. ${s.contacting} contact something just from being installed and started. Live numbers from checkable runs.`, alternate: "/v1/state" });
 }
 
 const BADGE: Partial<Record<Outcome, string>> = { started: "#17603a", "needs-setup": "#8a4a12", "needs-service": "#8a4a12" };
@@ -53,7 +53,7 @@ const BADGE: Partial<Record<Outcome, string>> = { started: "#17603a", "needs-set
 export function badgeSvg(d: ReportDetail | null): string {
   const o = d?.summary.outcome;
   // The same shape for every server that starts, so a clean result is not advertised while another is left out.
-  const right = !d || !o ? "not reported" : o === "started" ? `starts · ${d.summary.tools} tools${d.report.network ? ` · ${d.summary.contacts.length} hosts at start` : ""}` : outcomeLabel[o].toLowerCase();
+  const right = !d || !o ? "not reported" : o === "started" ? `starts · ${d.summary.tools} tools${d.report.network ? ` · contacts ${d.summary.contacts.length} hosts` : ""}` : outcomeLabel[o].toLowerCase();
   const color = (o && BADGE[o]) || "#66625a";
   const w1 = 70;
   const w2 = Math.round(right.length * 5.9) + 16;

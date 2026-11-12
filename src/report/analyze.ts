@@ -70,7 +70,7 @@ export const contactsOf = (r: Report): string[] => [...(r.network?.names ?? []).
 
 /** What a contacted host usually is, for the few kinds a reader should not have to recognise. */
 export function hostNote(host: string): string {
-  if (/^169\.254\.169\.254|^metadata\.google\.internal/.test(host)) return "the cloud metadata address, where a cloud machine's credentials are read from";
+  if (/^169\.254\.169\.254|^metadata\.google\.internal/.test(host)) return "the cloud metadata address; cloud SDKs probe it when looking for credentials";
   if (/posthog|sentry\.io|beacon|analytics|telemetry|segment\.(io|com)|mixpanel|amplitude|datadoghq|bugsnag|rollbar|applicationinsights/i.test(host)) return "usually analytics or error reporting";
   if (/^release-assets\.githubusercontent\.com$|^objects\.githubusercontent\.com$/.test(host)) return "a release file downloaded from GitHub";
   return "";

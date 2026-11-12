@@ -18,11 +18,11 @@ servers. 155 had no start command (libraries and kits, not servers) and are left
 | Start with no setup and list their tools | **58%** (786 of 1,348) |
 | Need setup first (a key, an argument) | 268 |
 | Did not start, and did not say what they need | 243 |
-| Contact something other than npm just by being started | 209, of which 136 are one publisher's packages calling the same gateway |
+| Contact something other than npm just from being installed and started | 209, of which 136 are one publisher's packages calling the same gateway |
 | Have tool descriptions with commands in capitals or other unusual wording | 160 |
 | Have tool descriptions about the user, other tools or private files | 9 |
 
-Apart from that one family, what servers contact at start is mostly their own service, release downloads
+Apart from that one family, what servers contact is mostly their own service, release downloads
 from GitHub, and analytics or error reporting; one probes the cloud metadata address that a cloud machine's
 credentials are read from. The list leans on download counts, which favour families of near-identical packages. The
 [numbers page](https://bragproof.smaverk.com/state) lists the hosts and is always current; every figure there
