@@ -26,6 +26,9 @@ export function statePage(s: State, origin: string): string {
 <div class="scroll"><table class="bars"><tbody>${bars}</tbody></table></div>
 <p class="small"><a href="/?show=started#results">Browse the ones that start</a> · <a href="/?show=needs-setup#results">the ones that need setup</a></p>
 
+${s.callable ? `<h2>Do they answer when called?</h2>
+<p>${s.callable} of the servers that start have a tool that takes no input and looks read-only. Called once with nothing, ${s.answering} (${pct(s.answering, s.callable)}%) gave an answer from at least one such tool. The rest list tools but need a key, a login or a setting before any of them works.</p>` : ""}
+
 <h2>What they contact when installed and started</h2>
 ${list(s.hosts, "Nothing recorded yet.")}
 <p class="small muted">Hosts looked up or connected to while a server was installed and started with no input, watched from outside its sandbox. The npm registry is left out. <a href="/?show=contacts#results">Which servers</a></p>
@@ -40,7 +43,7 @@ ${list(s.needs, "Nothing recorded yet.")}
 <li>It is started with no arguments, no environment and no input, as an unprivileged user in a sandbox, on a machine that is thrown away afterwards.</li>
 <li>"Starts" means it answered the two requests every client sends first: <code>initialize</code> and <code>tools/list</code>.</li>
 ${s.leftOut ? `<li>${s.leftOut} packages that turned out to have no start command (libraries and kits, not servers) are left out of every number here.</li>` : ""}
-<li>No tool is called. What a tool does when called is not in these numbers.</li>
+<li>Up to five tools per server are called, and only ones that take no input and whose names read like looking something up. What the other tools do is not in these numbers.</li>
 <li>A server that needs a key is not broken. "Needs setup" is a fact for whoever is about to use it, not a mark against it.</li>
 </ul>
 <p>Every report links to the public run that made it and can be checked without trusting this site. <a href="/about#check">How</a> · <a href="${REPO}">Source</a> · <a href="/v1/state">These numbers as JSON</a></p>`;

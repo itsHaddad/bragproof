@@ -95,7 +95,7 @@ jobs:
             version=$(jq -r '.version // empty' latest.json 2>/dev/null || true)
             : > cap.txt
             if [ "$code" = 200 ] && echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9_.-]+)?$'; then
-              sudo tcpdump -i docker0 -nn -l -p 'udp or tcp port 53 or (tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0)' > cap.txt 2>/dev/null &
+              sudo tcpdump -i docker0 -nn -tt -l -p 'udp or tcp port 53 or (tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0)' > cap.txt 2>/dev/null &
               sleep 2
               line=$(timeout -k 5 300 docker run --rm --init --name bp-run --security-opt no-new-privileges --memory 2g --pids-limit 512 --entrypoint bun runner src/cli/main.ts report "$name@$version" 2>/dev/null </dev/null | grep -m1 '^BRAGPROOF-REPORT:' | cut -d: -f2- || true)
               # Nothing of this package may still be running when the next one is watched.
@@ -109,20 +109,38 @@ jobs:
             else
               echo "registry answered ${code:-nothing}; skipped"; continue
             fi
-            # Every kind of name lookup; connections to addresses that no lookup returned (an address written
-            # into the code); and other traffic that is not a lookup at all.
-            { grep -oE ' [A-Z][A-Z0-9]*\? [^ ]+' cap.txt || true; } | awk '{print $2}' | sed 's/\.$//' | { grep -E '^[A-Za-z0-9._-]{1,253}$' || true; } | sort -u > names.txt
+            # What the network saw, recorded outside the container. Every kind of name lookup; connections to
+            # addresses that no lookup returned (an address written into the code); other UDP the container sent.
             # Answers count only when they come from a resolver (port 53) that is not the container itself, so a
             # package cannot vouch for an address by sending itself a made-up answer.
             { grep -E ' IP [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.53 > ' cap.txt || true; } | { grep -vE ' IP 172\.(1[6-9]|2[0-9]|3[01])\.' || true; } | { grep -oE ' A [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' || true; } | awk '{print $2}' | sort -u > answers.txt
-            { grep -E 'Flags \[S\]' cap.txt || true; } | { grep -oE '> [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1 \2/' | sort -u | while read -r ip port; do [ "$port" = 53 ] || grep -qxF "$ip" answers.txt || echo "$ip:$port"; done > direct.txt
-            # Other UDP the container sent (not replies to it), to addresses no lookup returned.
-            { grep -E ' IP 172\.(1[6-9]|2[0-9]|3[01])\.[0-9.]+ > .* UDP, length' cap.txt || true; } | { grep -oE '> [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1 \2/' | sort -u | while read -r ip port; do [ "$port" = 53 ] || [ "$port" = 5353 ] || grep -qxF "$ip" answers.txt || echo "$ip:$port/udp"; done >> direct.txt
+            seen() { # $1: a capture file. Writes names.out and direct.out for it.
+              { grep -oE ' [A-Z][A-Z0-9]*\? [^ ]+' "$1" || true; } | awk '{print $2}' | sed 's/\.$//' | { grep -E '^[A-Za-z0-9._-]{1,253}$' || true; } | sort -u > names.out
+              { grep -E 'Flags \[S\]' "$1" || true; } | { grep -oE '> [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1 \2/' | sort -u | while read -r ip port; do [ "$port" = 53 ] || grep -qxF "$ip" answers.txt || echo "$ip:$port"; done > direct.out
+              { grep -E ' IP 172\.(1[6-9]|2[0-9]|3[01])\.[0-9.]+ > .* UDP, length' "$1" || true; } | { grep -oE '> [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1 \2/' | sort -u | while read -r ip port; do [ "$port" = 53 ] || [ "$port" = 5353 ] || grep -qxF "$ip" answers.txt || echo "$ip:$port/udp"; done >> direct.out
+            }
+            # The report says when the runner began calling tools; packets from then on belong to the calls.
+            at=$(printf '%s' "$line" | jq -r '(.callsAt // empty) | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601' 2>/dev/null || true)
+            case "$at" in ''|*[!0-9]*) at=;; esac
+            if [ -n "$at" ]; then
+              awk -v t="$at" '($1 + 0) < t' cap.txt > before.txt; awk -v t="$at" '($1 + 0) >= t' cap.txt > during.txt
+            else
+              cp cap.txt before.txt; : > during.txt
+            fi
+            seen before.txt; cp names.out names.txt; cp direct.out direct.txt
+            seen during.txt
             names=$({ grep -vxF 'registry.npmjs.org' names.txt || true; } | head -59 | { cat; grep -xF 'registry.npmjs.org' names.txt || true; } | jq -R . | jq -sc .)
             conns=$(head -60 direct.txt | jq -R . | jq -sc .)
+            # During the calls, only what was not already contacted before them.
+            callnames=$({ grep -vxFf names.txt names.out || true; } | head -60 | jq -R . | jq -sc .)
+            callconns=$({ grep -vxFf direct.txt direct.out || true; } | head -60 | jq -R . | jq -sc .)
             # The capture is believed only when it saw the install's own lookup of the registry.
             if grep -qxF 'registry.npmjs.org' names.txt; then
-              printf '%s' "$line" | stamp | jq -cj --argjson names "$names" --argjson conns "$conns" '. + {network: {names: $names, conns: $conns}}' > report.json
+              if [ -n "$at" ]; then
+                printf '%s' "$line" | stamp | jq -cj --argjson names "$names" --argjson conns "$conns" --argjson cn "$callnames" --argjson cc "$callconns" '. + {network: {names: $names, conns: $conns, callNames: $cn, callConns: $cc}}' > report.json
+              else
+                printf '%s' "$line" | stamp | jq -cj --argjson names "$names" --argjson conns "$conns" '. + {network: {names: $names, conns: $conns}}' > report.json
+              fi
             else
               printf '%s' "$line" | stamp > report.json
             fi

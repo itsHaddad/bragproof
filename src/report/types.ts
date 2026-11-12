@@ -5,6 +5,8 @@
 export const REPORT_VERSION = 1;
 
 export type ReportTool = { name: string; description: string; params: string[] };
+/** One tool called with no input: whether it answered, how fast, how much text came back. */
+export type ReportCall = { tool: string; ok: boolean; ms: number; bytes: number; error?: string };
 
 export type Report = {
   v: 1;
@@ -40,12 +42,16 @@ export type Report = {
   tools: ReportTool[];
   /** sha256 over the full tool definitions (names, descriptions, input schemas) as the server sent them. */
   toolsHash: string;
+  /** A few tools that take no input and look read-only, each called once with nothing. Absent when none was
+   * tried. `callsAt` is when the calls began, so the host can tell what was contacted before and during them. */
+  calls?: ReportCall[];
+  callsAt?: string;
   /** Files the server created or changed while it ran, as paths inside its sandbox. */
   wrote: string[];
   /** Added outside the sandbox by whoever hosted the run, while the package was installed and started: every
    * name looked up, and connections to addresses that no lookup returned (an address written into the code).
    * Absent when the host could not record them. */
-  network?: { names: string[]; conns: string[] };
+  network?: { names: string[]; conns: string[]; callNames?: string[]; callConns?: string[] };
   /** Added by the host: where the run can be looked at. */
   host?: { commit: string; run: string };
 };
@@ -66,7 +72,7 @@ const obj = (v: unknown): v is Record<string, unknown> => typeof v === "object" 
 export function reportProblems(r: unknown): string[] {
   const bad: string[] = [];
   if (!obj(r)) return ["not an object"];
-  if (!only(r, ["v", "package", "version", "ranAt", "install", "start", "tools", "toolsHash", "wrote", "network", "host"])) bad.push("unknown field");
+  if (!only(r, ["v", "package", "version", "ranAt", "install", "start", "tools", "toolsHash", "wrote", "network", "host", "calls", "callsAt"])) bad.push("unknown field");
   if (r.v !== 1) bad.push("v must be 1");
   if (!validPackage(r.package)) bad.push("package is not an npm package name");
   if (!validVersion(r.version)) bad.push("version is not an exact version");
@@ -80,8 +86,10 @@ export function reportProblems(r: unknown): string[] {
   if (!Array.isArray(r.tools) || r.tools.length > 200 || !r.tools.every((t) => obj(t) && only(t, ["name", "description", "params"]) && str(t.name, 200) && str(t.description, 3000) && strs(t.params, 60, 100))) bad.push("tools is malformed");
   if (!str(r.toolsHash, 64) || !/^[0-9a-f]{64}$/.test(String(r.toolsHash))) bad.push("toolsHash is not a sha256");
   if (!strs(r.wrote, 40, 300)) bad.push("wrote is malformed");
+  if (r.calls !== undefined && (!Array.isArray(r.calls) || r.calls.length > 5 || !r.calls.every((c) => obj(c) && only(c, ["tool", "ok", "ms", "bytes", "error"]) && str(c.tool, 200) && typeof c.ok === "boolean" && Number.isInteger(c.ms) && (c.ms as number) >= 0 && Number.isInteger(c.bytes) && (c.bytes as number) >= 0 && optional(c.error, (v) => str(v, 300))))) bad.push("calls is malformed");
+  if (r.callsAt !== undefined && (!str(r.callsAt, 30) || !TIME.test(String(r.callsAt)))) bad.push("callsAt is not a time");
   const n = r.network;
-  if (n !== undefined && (!obj(n) || !only(n, ["names", "conns"]) || !strs(n.names, 60, 253) || !strs(n.conns, 60, 60))) bad.push("network is malformed");
+  if (n !== undefined && (!obj(n) || !only(n, ["names", "conns", "callNames", "callConns"]) || !strs(n.names, 60, 253) || !strs(n.conns, 60, 60) || !optional(n.callNames, (v) => strs(v, 60, 253)) || !optional(n.callConns, (v) => strs(v, 60, 60)))) bad.push("network is malformed");
   const h = r.host;
   if (h !== undefined && (!obj(h) || !only(h, ["commit", "run"]) || !str(h.commit, 40) || !str(h.run, 200))) bad.push("host is malformed");
   return bad;

@@ -11,7 +11,7 @@ import type { Executor } from "./store.ts";
 /** `contacts` is -1 when the network was not recorded for the run. */
 export type ReportRow = { package: string; version: string; ranAt: string; outcome: Outcome; tools: number; contacts: number; flags: number; serious: number; toolsHash: string };
 export type ReportDetail = { report: Report; summary: Summary; token: string; history: ReportRow[] };
-export type State = { total: number; /** Packages with no start command: not servers, so not counted. */ leftOut: number; outcomes: { outcome: Outcome; n: number }[]; contacting: number; flagged: number; serious: number; hosts: { name: string; n: number }[]; needs: { name: string; n: number }[] };
+export type State = { /** Servers with a tool that could be called blind, and how many of those answered one. */ callable: number; answering: number; total: number; /** Packages with no start command: not servers, so not counted. */ leftOut: number; outcomes: { outcome: Outcome; n: number }[]; contacting: number; flagged: number; serious: number; hosts: { name: string; n: number }[]; needs: { name: string; n: number }[] };
 export type ReportQuery = { q?: string; outcome?: string; contacts?: boolean; limit?: number };
 
 const SCHEMA = [
@@ -20,7 +20,7 @@ const SCHEMA = [
     package TEXT NOT NULL, version TEXT NOT NULL, ran_at TEXT NOT NULL, admitted_at TEXT NOT NULL,
     latest INTEGER NOT NULL, outcome TEXT NOT NULL, tools INTEGER NOT NULL, contacts INTEGER NOT NULL,
     flags INTEGER NOT NULL, serious INTEGER NOT NULL, tools_hash TEXT NOT NULL,
-    contact_names TEXT NOT NULL, need_names TEXT NOT NULL, search TEXT NOT NULL, names TEXT,
+    contact_names TEXT NOT NULL, need_names TEXT NOT NULL, search TEXT NOT NULL, names TEXT, calls_tried INTEGER, calls_ok INTEGER,
     report TEXT NOT NULL, token TEXT NOT NULL, UNIQUE (package, version))`,
   "CREATE INDEX IF NOT EXISTS reports_by_latest ON reports (latest, outcome, id)",
   "CREATE INDEX IF NOT EXISTS reports_by_package ON reports (package, id)",
@@ -51,6 +51,8 @@ export class ReportBook {
       // Added after the first feeds existed: the package and tool names on their own, so a search can rank a
       // match in a name above a match somewhere in a description. Filled in a few hundred rows per start.
       await this.db.run("ALTER TABLE reports ADD COLUMN names TEXT", []).catch(() => {});
+      await this.db.run("ALTER TABLE reports ADD COLUMN calls_tried INTEGER", []).catch(() => {});
+      await this.db.run("ALTER TABLE reports ADD COLUMN calls_ok INTEGER", []).catch(() => {});
       await this.db.run("UPDATE reports SET names = lower(package || ' ' || coalesce((SELECT group_concat(json_extract(j.value, '$.name'), ' ') FROM json_each(reports.report, '$.tools') j), '')) WHERE id IN (SELECT id FROM reports WHERE names IS NULL LIMIT 100)", []).catch(() => {});
     })().catch((e) => {
       this.ready = null;
@@ -85,9 +87,9 @@ export class ReportBook {
       return { ok: true, package: r.package, version: r.version, outcome: s.outcome, kept: false };
     }
     await this.db.run(
-      `INSERT INTO reports (package, version, ran_at, admitted_at, latest, outcome, tools, contacts, flags, serious, tools_hash, contact_names, need_names, search, names, report, token) VALUES (?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?)
-       ON CONFLICT (package, version) DO UPDATE SET latest = 1, ran_at = excluded.ran_at, admitted_at = excluded.admitted_at, outcome = excluded.outcome, tools = excluded.tools, contacts = excluded.contacts, flags = excluded.flags, serious = excluded.serious, tools_hash = excluded.tools_hash, contact_names = excluded.contact_names, need_names = excluded.need_names, search = excluded.search, names = excluded.names, report = excluded.report, token = excluded.token`.replace(/\s+/g, " "),
-      [r.package, r.version, r.ranAt, now, s.outcome, s.tools, r.network ? s.contacts.length : -1, s.flags.length, serious, r.toolsHash, JSON.stringify(s.contacts), JSON.stringify(s.needs), search, [r.package, ...r.tools.map((t) => t.name)].join(" ").toLowerCase().slice(0, 20_000), reportText as string, token as string],
+      `INSERT INTO reports (package, version, ran_at, admitted_at, latest, outcome, tools, contacts, flags, serious, tools_hash, contact_names, need_names, search, names, calls_tried, calls_ok, report, token) VALUES (?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT (package, version) DO UPDATE SET latest = 1, ran_at = excluded.ran_at, admitted_at = excluded.admitted_at, outcome = excluded.outcome, tools = excluded.tools, contacts = excluded.contacts, flags = excluded.flags, serious = excluded.serious, tools_hash = excluded.tools_hash, contact_names = excluded.contact_names, need_names = excluded.need_names, search = excluded.search, names = excluded.names, calls_tried = excluded.calls_tried, calls_ok = excluded.calls_ok, report = excluded.report, token = excluded.token`.replace(/\s+/g, " "),
+      [r.package, r.version, r.ranAt, now, s.outcome, s.tools, r.network ? s.contacts.length : -1, s.flags.length, serious, r.toolsHash, JSON.stringify(s.contacts), JSON.stringify(s.needs), search, [r.package, ...r.tools.map((t) => t.name)].join(" ").toLowerCase().slice(0, 20_000), s.callsTried, s.callsAnswered, reportText as string, token as string],
     );
     // The version reported last is the one shown for the package. If this step fails the package shows twice
     // until its next report, which is better than not at all.
@@ -146,10 +148,10 @@ export class ReportBook {
   /** The numbers for the whole collection. Packages that are not servers (no start command) are left out. */
   async state(): Promise<State> {
     const outcomes = (await this.all("SELECT outcome, count(*) AS n FROM reports WHERE latest = 1 AND outcome NOT IN ('not-found', 'no-start-command') GROUP BY outcome ORDER BY n DESC")).map((r) => ({ outcome: r.outcome as Outcome, n: Number(r.n) }));
-    const c = (await this.all("SELECT count(*) AS total, sum(contacts > 0) AS contacting, sum(flags > 0) AS flagged, sum(serious > 0) AS serious FROM reports WHERE latest = 1 AND outcome NOT IN ('not-found', 'no-start-command')"))[0] ?? {};
+    const c = (await this.all("SELECT count(*) AS total, sum(contacts > 0) AS contacting, sum(flags > 0) AS flagged, sum(serious > 0) AS serious, sum(coalesce(calls_tried, 0) > 0) AS callable, sum(coalesce(calls_ok, 0) > 0) AS answering FROM reports WHERE latest = 1 AND outcome NOT IN ('not-found', 'no-start-command')"))[0] ?? {};
     const leftOut = Number((await this.all("SELECT count(*) AS n FROM reports WHERE latest = 1 AND outcome = 'no-start-command'"))[0]?.n ?? 0);
     const top = async (column: string) => (await this.all(`SELECT j.value AS name, count(*) AS n FROM reports r, json_each(r.${column}) j WHERE r.latest = 1 AND r.outcome NOT IN ('not-found', 'no-start-command') GROUP BY j.value ORDER BY n DESC, name ASC LIMIT 15`)).map((r) => ({ name: String(r.name), n: Number(r.n) }));
-    return { total: Number(c.total ?? 0), leftOut, outcomes, contacting: Number(c.contacting ?? 0), flagged: Number(c.flagged ?? 0), serious: Number(c.serious ?? 0), hosts: await top("contact_names"), needs: await top("need_names") };
+    return { callable: Number(c.callable ?? 0), answering: Number(c.answering ?? 0), total: Number(c.total ?? 0), leftOut, outcomes, contacting: Number(c.contacting ?? 0), flagged: Number(c.flagged ?? 0), serious: Number(c.serious ?? 0), hosts: await top("contact_names"), needs: await top("need_names") };
   }
 
   /** Asks for a report on a package. Reported already: says so. Otherwise it joins the queue the report

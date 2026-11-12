@@ -121,5 +121,8 @@ export function flagsOf(r: Report): Flag[] {
 /** Flags that deserve a look, as opposed to the common habit of writing MUST in capitals. */
 export const seriousFlags = (flags: Flag[]) => flags.filter((f) => f.kind === "about-others" || f.kind === "private-files" || f.kind === "hidden-characters");
 
-export type Summary = { outcome: Outcome; needs: string[]; contacts: string[]; flags: Flag[]; tools: number; wrote: number };
-export const summarize = (r: Report): Summary => ({ outcome: outcomeOf(r), needs: needsOf(r), contacts: contactsOf(r), flags: flagsOf(r), tools: r.tools.length, wrote: r.wrote.length });
+/** Hosts first contacted while its tools were being called, not before. */
+export const callContactsOf = (r: Report): string[] => [...(r.network?.callNames ?? []), ...(r.network?.callConns ?? [])].filter((n) => n !== "registry.npmjs.org");
+
+export type Summary = { outcome: Outcome; needs: string[]; contacts: string[]; flags: Flag[]; tools: number; wrote: number; callsTried: number; callsAnswered: number; callContacts: string[] };
+export const summarize = (r: Report): Summary => ({ outcome: outcomeOf(r), needs: needsOf(r), contacts: contactsOf(r), flags: flagsOf(r), tools: r.tools.length, wrote: r.wrote.length, callsTried: r.calls?.length ?? 0, callsAnswered: r.calls?.filter((c) => c.ok).length ?? 0, callContacts: callContactsOf(r) });

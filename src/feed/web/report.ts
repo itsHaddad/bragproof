@@ -42,7 +42,7 @@ export function reportPage(d: ReportDetail, claims: ClaimRow[], origin: string):
   const few = (xs: string[]) => xs.slice(0, 3).map((x) => `<code>${esc(x)}</code>`).join(", ") + (xs.length > 3 ? ` +${xs.length - 3}` : "");
   const reason = started ? "" : saidFirst(r);
   const wants = started ? "nothing" : s.needs.length ? few(s.needs) : reason ? `<q>${esc(reason)}</q>` : "not said";
-  const answer = r.install.ok ? `<p class="answer"><b>Needs to start:</b> ${wants}${r.network ? `<br><b>Contacts while installing and starting:</b> ${s.contacts.length ? few(s.contacts) : "nothing"}` : ""}</p>` : "";
+  const answer = r.install.ok ? `<p class="answer"><b>Needs to start:</b> ${wants}${r.calls?.length ? `<br><b>Answers a call with no setup:</b> ${s.callsAnswered} of ${r.calls.length} tried` : ""}${r.network ? `<br><b>Contacts while installing and starting:</b> ${s.contacts.length ? few(s.contacts) : "nothing"}` : ""}</p>` : "";
   const contacted = `<h2>What it contacted</h2>
 ${!r.network ? '<p class="muted">Not recorded for this run.</p>' : s.contacts.length ? `<ul>${s.contacts.map((n) => `<li><code>${esc(n)}</code>${hostNote(n) ? `<span class="muted">: ${hostNote(n)}</span>` : ""}</li>`).join("")}</ul><p class="small muted">Hosts it looked up or connected to while installing and starting with no input, watched from outside its sandbox. The npm registry is left out. Says nothing about what its tools contact when called.</p>` : '<p>Nothing besides the npm registry it was installed from. <span class="muted">Watched from outside its sandbox while it was installed and started with no input. Its tools may still contact things when called.</span></p>'}`;
   const tool = (t: Report["tools"][number]) => `<details><summary><code>${esc(t.name)}</code>${t.params.length ? ` <span class="muted small">${t.params.map(esc).join(", ")}</span>` : ""}</summary><pre class="cmd">${esc(t.description || "(no description)")}</pre></details>`;
@@ -66,7 +66,13 @@ ${contacted}
 ${s.needs.length ? `<p>Its error output names these settings: ${s.needs.map((n) => `<code>${esc(n)}</code>`).join(", ")}.</p>` : ""}
 ${!started && (r.start.stderr || r.start.error || r.install.error) ? `<details open><summary>What it said when it did not start</summary><pre class="cmd">${esc(r.start.stderr || r.start.error || r.install.error)}</pre><p class="small muted">Written by the package or by npm, not by this site.</p></details>` : ""}
 
-${started ? `<h2>What its tools tell an agent</h2>
+${r.calls?.length ? `<h2>Calling its tools</h2>
+<p>${plural(r.calls.length, "tool")} that ${r.calls.length === 1 ? "takes" : "take"} no input and ${r.calls.length === 1 ? "looks" : "look"} read-only ${r.calls.length === 1 ? "was" : "were"} called once with nothing. <b>${s.callsAnswered} answered.</b></p>
+<div class="scroll"><table><tbody>${r.calls.map((c) => `<tr><td><code>${esc(c.tool)}</code></td><td>${c.ok ? `<span class="badge ok">Answered</span> <span class="muted nw">${(c.ms / 1000).toFixed(1)} s · ${c.bytes.toLocaleString("en")} characters</span>` : `<span class="badge weak">No answer</span> <span class="muted">${esc((c.error ?? "").slice(0, 160))}</span>`}</td></tr>`).join("")}</tbody></table></div>
+${r.network?.callNames ? (s.callContacts.length ? `<p>While being called it contacted, for the first time: ${s.callContacts.map((n) => `<code>${esc(n)}</code>${hostNote(n) ? ` <span class="muted">(${hostNote(n)})</span>` : ""}`).join(", ")}.</p>` : "<p>While being called it contacted nothing it had not already contacted.</p>") : ""}
+<p class="small muted">Only tools whose names read like looking something up, with no required input, are tried, five at most. Tools that need input, and anything that sounds like it changes or sends something, are not called.</p>
+
+` : ""}${started ? `<h2>What its tools tell an agent</h2>
 ${serious.length ? `<p>Wording worth reading before an agent does:</p>${flagList(serious)}` : "<p>In the tool descriptions, nothing that talks about the user, other tools or private files, or uses hidden characters.</p>"}
 ${orders.length ? `<details><summary>${plural(orders.length, "tool")} with commands in capitals or very long text</summary>${flagList(orders)}<p class="small muted">Common and usually harmless: it is how many makers stress how a tool should be used.</p></details>` : ""}
 <p class="small muted">Found by simple pattern rules in each tool's description (up to 3,000 characters), quoted as written. Parameter descriptions are not scanned. A clean result is not a safety review.</p>

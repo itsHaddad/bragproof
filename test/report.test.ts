@@ -276,3 +276,28 @@ test("a missing program or an unsupported machine is not called a need for setup
   expect(outcomeOf(failedWith("excel-mcp: ExcelMcp is Windows only."))).toBe("wrong-platform");
   expect(outcomeOf(failedWith("Error: EXAMPLE_API_KEY is required"))).toBe("needs-setup");
 });
+
+describe("calling tools blind", () => {
+  const t = (name: string, required: string[] = []) => ({ name, inputSchema: { type: "object", properties: {}, required } });
+  test("only tools that take no input and read like a lookup are called, five at most", async () => {
+    const { safeToCall } = await import("../src/check/report.ts");
+    expect(safeToCall([t("list_timezones"), t("get-current-time"), t("docs.index"), t("listAllowedDirectories"), t("ef_list_lore_categories")])).toEqual(["list_timezones", "get-current-time", "docs.index", "listAllowedDirectories", "ef_list_lore_categories"]);
+    expect(safeToCall([t("get_user", ["id"]), t("delete_all"), t("list_and_delete"), t("create_account"), t("get_and_send_report"), t("deploy"), t("echo"), t("list_then_generate_image")])).toEqual([]);
+    expect(safeToCall(Array.from({ length: 9 }, (_, i) => t("list_" + "abcdefghi"[i]))).length).toBe(5);
+  });
+  test("a report says which called tools answered and what was first contacted during the calls", async () => {
+    const attestor = fakeAttestor();
+    const handle = feedHandler(new FeedService(new FeedDb(":memory:"), { policy, keys: attestor.keys, reportPolicy }));
+    const r = report({ calls: [{ tool: "list_things", ok: true, ms: 120, bytes: 400 }, { tool: "get_status", ok: false, ms: 30, bytes: 0, error: "tool reported an error: <b>API key required</b>" }], callsAt: new Date().toISOString(), network: { names: ["registry.npmjs.org"], conns: [], callNames: ["api.example.com"], callConns: [] } });
+    const text = JSON.stringify(r);
+    const body = JSON.stringify({ report: text, token: attestor.mint(claimsFor(text)) });
+    expect((await handle(new Request("https://feed.test/v1/reports", { method: "POST", headers: { "content-type": "application/json", "content-length": String(body.length) }, body }))).status).toBe(201);
+    const page = await (await handle(new Request("https://feed.test/r/@example/echo"))).text();
+    expect(page).toContain("1 of 2 tried");
+    expect(page).toContain("api.example.com");
+    expect(page).not.toContain("<b>API key");
+    const state = (await (await handle(new Request("https://feed.test/v1/state"))).json()) as any;
+    expect([state.callable, state.answering]).toEqual([1, 1]);
+    expect(reportProblems({ ...r, calls: Array.from({ length: 6 }, () => r.calls![0]) }).join()).toMatch(/calls/);
+  });
+});

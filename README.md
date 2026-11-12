@@ -100,11 +100,12 @@ started.
    repository and installs the newest version of the package from the npm registry, without running install
    scripts.
 2. The package is started inside a jail in a container: chrooted, as an unprivileged user, with no
-   environment, no arguments and no input. It is sent `initialize` and `tools/list`. No tool is called.
-3. The runner records whether it answered, what it printed if it did not, every tool and description, and
-   the files it wrote.
+   environment, no arguments and no input. It is sent `initialize` and `tools/list`. Then up to five tools that take no input and whose
+   names read like looking something up are each called once with nothing.
+3. The runner records whether it answered, what it printed if it did not, every tool and description,
+   which of the called tools answered, and the files it wrote.
 4. Outside the container, where the package cannot hide anything, the job records every name looked up and
-   every connection to an address no lookup returned.
+   every connection to an address no lookup returned, split into before and during the tool calls.
 5. The job asks GitHub for a signed token whose audience is the SHA-256 of the report's exact text, and sends
    both to the feed. The feed stores a report only if the token verifies.
 
@@ -121,8 +122,8 @@ token's `aud`. What you end up trusting is GitHub and code you can read.
 
 ## What a report does not tell you
 
-- **What the tools do when called.** Nothing is called. A server that starts quietly can do anything once
-  used.
+- **What most tools do when called.** Only a few read-only tools that take no input are called. A server
+  that starts quietly can do anything once used.
 - **That it is safe.** Wording is found by simple pattern rules. A clean report is not a security review.
 - **That it is good.** Starting is the lowest bar there is.
 - **Anything about tomorrow.** A report covers one version on one day. The standing list is run again every

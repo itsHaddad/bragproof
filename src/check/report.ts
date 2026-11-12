@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { canonical, sha256Hex } from "../receipt/canonical.ts";
 import type { Subject } from "../receipt/types.ts";
-import type { Report, ReportTool } from "../report/types.ts";
+import type { Report, ReportCall, ReportTool } from "../report/types.ts";
 import { type Started, startSubject } from "./run.ts";
 
 /** No control characters, and never longer than a report allows. */
@@ -18,6 +18,24 @@ export function pickBin(pkg: string, bins: string[]): string | undefined {
   if (bins.length === 1) return bins[0];
   const base = pkg.split("/").pop()!;
   return bins.find((b) => b === base) ?? bins.find((b) => b === pkg) ?? bins.find((b) => /mcp/i.test(b) && /server/i.test(b)) ?? bins.find((b) => /mcp/i.test(b)) ?? bins.find((b) => /server/i.test(b));
+}
+
+const READS = new Set(["list", "get", "search", "find", "read", "show", "describe", "status", "health", "ping", "version", "help", "docs", "doc", "info", "whoami", "about", "capabilities", "current", "now", "time", "stats", "summary", "overview", "categories", "guide", "guidelines"]);
+const WRITES = /creat|delet|remov|updat|^set$|writ|send|post|deploy|^run$|exec|kill|stop|start|install|^add$|^put$|push|publish|pay|buy|transfer|sign|login|logout|auth|reset|clear|drop|upload|register|open|launch|generat|mak|build|sav|stor|edit|modif|import|export|sync|init|new|book|order|cancel|approv|merg|commit|click|typ|navigat|scrap|crawl|fetch|download|record|captur|screenshot|shutdown|restart|enabl|disabl|grant|revok|invit|subscrib|claim|mint|swap|trade|withdraw|deposit/;
+
+/** The tools worth calling blind: no required input, a name that reads like looking something up, and no
+ * word in the name that suggests it changes or sends anything. A handful at most. */
+export function safeToCall(tools: { name: string; inputSchema: unknown }[]): string[] {
+  const picked: string[] = [];
+  for (const t of tools) {
+    const schema = t.inputSchema as { required?: unknown; properties?: unknown } | null;
+    if (Array.isArray(schema?.required) && schema.required.length > 0) continue;
+    const words = t.name.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase().split(/[^a-z]+/).filter(Boolean);
+    if (!words.slice(0, 3).some((w) => READS.has(w)) || words.some((w) => WRITES.test(w))) continue;
+    picked.push(t.name);
+    if (picked.length === 5) break;
+  }
+  return picked;
 }
 
 const paramsOf = (schema: unknown): string[] => {
@@ -88,6 +106,25 @@ export async function makeReport(pkg: string, version: string, bin?: string): Pr
       report.start = { ok: true, ms: Date.now() - startedAt, serverName: clean(info.serverName, 100), serverVersion: clean(info.serverVersion, 40), protocol: clean(info.protocol, 20) };
       report.toolsHash = sha256Hex(canonical(defs));
       report.tools = defs.map((t): ReportTool => ({ name: clean(t.name, 200), description: clean(t.description, 3000), params: paramsOf(t.inputSchema) }));
+      const callable = safeToCall(defs);
+      if (callable.length) {
+        // A quiet moment first, and the time written down, so whoever watches the network from outside can
+        // tell what was contacted while starting from what was contacted while being called.
+        await new Promise((r) => setTimeout(r, 2000));
+        report.callsAt = new Date().toISOString();
+        await new Promise((r) => setTimeout(r, 1000));
+        const calls: ReportCall[] = [];
+        for (const name of callable) {
+          const began = Date.now();
+          try {
+            const text = await started.client.callTool(name, {}, 15_000);
+            calls.push({ tool: clean(name, 200), ok: true, ms: Date.now() - began, bytes: text.length });
+          } catch (e) {
+            calls.push({ tool: clean(name, 200), ok: false, ms: Date.now() - began, bytes: 0, error: clean((e as Error).message, 300) });
+          }
+        }
+        report.calls = calls;
+      }
     } catch (e) {
       report.start = { ok: false, ms: Date.now() - startedAt, error: clean((e as Error).message, 400) };
     }
