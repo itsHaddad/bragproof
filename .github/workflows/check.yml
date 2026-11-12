@@ -44,7 +44,7 @@ jobs:
       receipt_b64: ${{ steps.run.outputs.receipt_b64 }}
     env:
       # The runner image, by digest. Changing this line changes which commits of this file verifiers accept.
-      RUNNER_IMAGE: ghcr.io/itshaddad/bragproof-runner@sha256:0000000000000000000000000000000000000000000000000000000000000000
+      RUNNER_IMAGE: ghcr.io/itshaddad/bragproof-runner@sha256:966049581611a00f8e90658c29eeecf5551fee30beeba7a6b7470ff9d34b7259
       CHECK_SPEC_B64: ${{ inputs.spec_b64 }}
       FEED_URL: ${{ inputs.feed }}
       BRAGPROOF_REQUIRE_EVIDENCE: "1"
