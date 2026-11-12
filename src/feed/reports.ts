@@ -19,7 +19,7 @@ const SCHEMA = [
     package TEXT NOT NULL, version TEXT NOT NULL, ran_at TEXT NOT NULL, admitted_at TEXT NOT NULL,
     latest INTEGER NOT NULL, outcome TEXT NOT NULL, tools INTEGER NOT NULL, contacts INTEGER NOT NULL,
     flags INTEGER NOT NULL, serious INTEGER NOT NULL, tools_hash TEXT NOT NULL,
-    contact_names TEXT NOT NULL, need_names TEXT NOT NULL, search TEXT NOT NULL,
+    contact_names TEXT NOT NULL, need_names TEXT NOT NULL, search TEXT NOT NULL, names TEXT,
     report TEXT NOT NULL, token TEXT NOT NULL, UNIQUE (package, version))`,
   "CREATE INDEX IF NOT EXISTS reports_by_latest ON reports (latest, outcome, id)",
   "CREATE INDEX IF NOT EXISTS reports_by_package ON reports (package, id)",
@@ -47,6 +47,10 @@ export class ReportBook {
   private init(): Promise<void> {
     this.ready ??= (async () => {
       for (const s of SCHEMA) await this.db.run(s.replace(/\s+/g, " "), []);
+      // Added after the first feeds existed: the package and tool names on their own, so a search can rank a
+      // match in a name above a match somewhere in a description. Filled in a few hundred rows per start.
+      await this.db.run("ALTER TABLE reports ADD COLUMN names TEXT", []).catch(() => {});
+      await this.db.run("UPDATE reports SET names = lower(package || ' ' || coalesce((SELECT group_concat(json_extract(j.value, '$.name'), ' ') FROM json_each(reports.report, '$.tools') j), '')) WHERE id IN (SELECT id FROM reports WHERE names IS NULL LIMIT 100)", []).catch(() => {});
     })().catch((e) => {
       this.ready = null;
       throw e;
@@ -80,9 +84,9 @@ export class ReportBook {
       return { ok: true, package: r.package, version: r.version, outcome: s.outcome, kept: false };
     }
     await this.db.run(
-      `INSERT INTO reports (package, version, ran_at, admitted_at, latest, outcome, tools, contacts, flags, serious, tools_hash, contact_names, need_names, search, report, token) VALUES (?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?)
-       ON CONFLICT (package, version) DO UPDATE SET latest = 1, ran_at = excluded.ran_at, admitted_at = excluded.admitted_at, outcome = excluded.outcome, tools = excluded.tools, contacts = excluded.contacts, flags = excluded.flags, serious = excluded.serious, tools_hash = excluded.tools_hash, contact_names = excluded.contact_names, need_names = excluded.need_names, search = excluded.search, report = excluded.report, token = excluded.token`.replace(/\s+/g, " "),
-      [r.package, r.version, r.ranAt, now, s.outcome, s.tools, s.contacts.length, s.flags.length, serious, r.toolsHash, JSON.stringify(s.contacts), JSON.stringify(s.needs), search, reportText as string, token as string],
+      `INSERT INTO reports (package, version, ran_at, admitted_at, latest, outcome, tools, contacts, flags, serious, tools_hash, contact_names, need_names, search, names, report, token) VALUES (?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT (package, version) DO UPDATE SET latest = 1, ran_at = excluded.ran_at, admitted_at = excluded.admitted_at, outcome = excluded.outcome, tools = excluded.tools, contacts = excluded.contacts, flags = excluded.flags, serious = excluded.serious, tools_hash = excluded.tools_hash, contact_names = excluded.contact_names, need_names = excluded.need_names, search = excluded.search, names = excluded.names, report = excluded.report, token = excluded.token`.replace(/\s+/g, " "),
+      [r.package, r.version, r.ranAt, now, s.outcome, s.tools, s.contacts.length, s.flags.length, serious, r.toolsHash, JSON.stringify(s.contacts), JSON.stringify(s.needs), search, [r.package, ...r.tools.map((t) => t.name)].join(" ").toLowerCase().slice(0, 20_000), reportText as string, token as string],
     );
     // The version reported last is the one shown for the package. If this step fails the package shows twice
     // until its next report, which is better than not at all.
@@ -113,7 +117,8 @@ export class ReportBook {
   async list(query: ReportQuery = {}): Promise<ReportRow[]> {
     const where = ["latest = 1", "outcome <> 'not-found'"];
     const args: (string | number)[] = [];
-    for (const term of (typeof query.q === "string" ? query.q : "").toLowerCase().split(/\s+/).filter(Boolean).slice(0, 8)) {
+    const terms = (typeof query.q === "string" ? query.q : "").toLowerCase().split(/\s+/).filter(Boolean).slice(0, 8);
+    for (const term of terms) {
       where.push("instr(search, ?) > 0");
       args.push(term);
     }
@@ -124,8 +129,11 @@ export class ReportBook {
     if (query.contacts) where.push("contacts > 0");
     // Packages that are not servers stay findable by name, but are not shown among the latest.
     if (!query.q && !query.outcome) where.push("outcome <> 'no-start-command'");
-    const order = query.q ? "CASE outcome WHEN 'started' THEN 0 ELSE 1 END, instr(package, ?) = 0, id DESC" : "id DESC";
-    if (query.q) args.push(query.q.toLowerCase().split(/\s+/).filter(Boolean)[0] ?? "");
+    // A word in the package's name counts most, then in a tool's name, then anywhere in a description. Servers
+    // that start come first, and ones with a great many tools last among equals: they match everything.
+    const score = terms.map(() => "(CASE WHEN instr(package, ?) > 0 THEN 4 WHEN instr(coalesce(names, ''), ?) > 0 THEN 2 ELSE 0 END)").join(" + ");
+    const order = terms.length ? `CASE outcome WHEN 'started' THEN 0 ELSE 1 END, ${score} DESC, CASE WHEN tools <= 40 THEN 0 ELSE 1 END, id DESC` : "id DESC";
+    for (const term of terms) args.push(term, term);
     return (await this.all(`SELECT ${COLUMNS} FROM reports WHERE ${where.join(" AND ")} ORDER BY ${order} LIMIT ${clamp(query.limit, 30, 200)}`, args)).map(toRow);
   }
 

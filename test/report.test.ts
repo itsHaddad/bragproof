@@ -250,3 +250,20 @@ describe("reports in the feed", () => {
     expect((await call("find_servers", { q: "key" })).servers[0].package).toBe("needs-key");
   });
 });
+
+describe("finding a server", () => {
+  const attestor = fakeAttestor();
+  test("a word in a name outranks the same word buried in a description", async () => {
+    const handle = feedHandler(new FeedService(new FeedDb(":memory:"), { policy, keys: attestor.keys, reportPolicy }));
+    const send = async (r: Report) => {
+      const text = JSON.stringify(r);
+      const body = JSON.stringify({ report: text, token: attestor.mint(claimsFor(text)) });
+      await handle(new Request("https://feed.test/v1/reports", { method: "POST", headers: { "content-type": "application/json", "content-length": String(body.length) }, body }));
+    };
+    await send(report({ package: "sqlite-mcp", tools: [{ name: "run", description: "Runs a statement.", params: [] }] }));
+    await send(report({ package: "notes-mcp", tools: [{ name: "query_sqlite", description: "Queries a file.", params: [] }] }));
+    await send(report({ package: "everything-mcp", tools: [{ name: "save", description: "Saves notes; storage is sqlite underneath.", params: [] }] }));
+    const found = ((await (await handle(new Request("https://feed.test/v1/reports?q=sqlite"))).json()) as any).reports.map((r: any) => r.package);
+    expect(found).toEqual(["sqlite-mcp", "notes-mcp", "everything-mcp"]);
+  });
+});
