@@ -15,9 +15,9 @@ export type FeedOptions = {
   /** How many self-reported receipts the feed keeps. They cost nothing to make, so a public feed keeps few
    * (or none: 0) and a private one may keep many. Proven receipts are never capped. */
   selfReportedCap?: number;
-  /** Which runs are believed for run reports, and how to tell whether npm has a package (asked before queueing). */
+  /** Which runs are believed for run reports, and why a package may not be queued (null when it may). */
   reportPolicy?: ReportPolicy;
-  packageExists?: (name: string) => Promise<boolean>;
+  packageEligible?: (name: string) => Promise<string | null>;
 };
 
 /** A small limit per sender on publishing, so one sender cannot flood the feed. Reading is never limited. */
@@ -54,13 +54,13 @@ export class FeedService {
     private options: FeedOptions = {},
   ) {
     this.policy = options.policy ?? defaultPolicy();
-    this.reports = new ReportBook(db.db, { policy: options.reportPolicy, keys: options.keys, exists: options.packageExists });
+    this.reports = new ReportBook(db.db, { policy: options.reportPolicy, keys: options.keys, eligible: options.packageEligible });
   }
 
   /** Asks for a report on a package, a few per sender per minute. */
   async askReport(pkg: unknown, sender = "unknown"): Promise<AskOutcome> {
     if (!this.allowAsk(senderKey(sender))) return { ok: false, reason: "too many requests from this sender, try again in a minute" };
-    return this.reports.ask(typeof pkg === "string" ? pkg.trim().toLowerCase() : pkg);
+    return this.reports.ask(typeof pkg === "string" ? pkg.trim().toLowerCase() : pkg, senderKey(sender));
   }
 
   async publish(receipt: unknown, sender = "unknown"): Promise<PublishOutcome> {

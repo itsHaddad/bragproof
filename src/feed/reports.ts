@@ -1,7 +1,8 @@
 import type { JwksSource } from "../attest/jwt.ts";
 import { type Outcome, type Summary, seriousFlags, summarize } from "../report/analyze.ts";
 import { type Report, validPackage } from "../report/types.ts";
-import { type ReportPolicy, verifyReport } from "../report/verify.ts";
+import { createHash } from "node:crypto";
+import { isReportWorkflow, type ReportPolicy, verifyReport } from "../report/verify.ts";
 import type { Executor } from "./store.ts";
 
 /** Run reports in the feed: one per package version, admitted only with a token that proves the report
@@ -22,21 +23,25 @@ const SCHEMA = [
     report TEXT NOT NULL, token TEXT NOT NULL, UNIQUE (package, version))`,
   "CREATE INDEX IF NOT EXISTS reports_by_latest ON reports (latest, outcome, id)",
   "CREATE INDEX IF NOT EXISTS reports_by_package ON reports (package, id)",
-  "CREATE TABLE IF NOT EXISTS requests (package TEXT PRIMARY KEY, asked_at TEXT NOT NULL, done_at TEXT)",
+  "CREATE TABLE IF NOT EXISTS requests (package TEXT PRIMARY KEY, asked_at TEXT NOT NULL, done_at TEXT, tries INTEGER NOT NULL DEFAULT 0)",
+  "CREATE TABLE IF NOT EXISTS askers (who TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (who, day))",
   "CREATE INDEX IF NOT EXISTS requests_open ON requests (done_at, asked_at)",
 ];
 const COLUMNS = "package, version, ran_at, outcome, tools, contacts, flags, serious, tools_hash";
 const toRow = (r: any): ReportRow => ({ package: r.package, version: r.version, ranAt: r.ran_at, outcome: r.outcome, tools: Number(r.tools), contacts: Number(r.contacts), flags: Number(r.flags), serious: Number(r.serious), toolsHash: r.tools_hash });
 const clamp = (limit: unknown, fallback: number, max: number) => Math.min(Math.max(Number.isFinite(limit) ? Math.trunc(limit as number) : fallback, 1), max);
 
-export type AdmitOutcome = { ok: true; package: string; version: string; outcome: Outcome } | { ok: false; reason: string };
+export type AdmitOutcome = { ok: true; package: string; version: string; outcome: Outcome; kept: boolean } | { ok: false; reason: string };
+/** A package is tried this many times before the queue gives up on it. */
+const MAX_TRIES = 3;
+const PER_SENDER_PER_DAY = 20;
 export type AskOutcome = { ok: true; status: "reported" | "queued" | "already-queued"; package: string } | { ok: false; reason: string };
 
 export class ReportBook {
   private ready: Promise<void> | null = null;
   constructor(
     private db: Executor,
-    private options: { policy?: ReportPolicy; keys?: JwksSource; exists?: (name: string) => Promise<boolean> } = {},
+    private options: { policy?: ReportPolicy; keys?: JwksSource; eligible?: (name: string) => Promise<string | null> } = {},
   ) {}
 
   private init(): Promise<void> {
@@ -62,17 +67,28 @@ export class ReportBook {
     const s = summarize(r);
     const serious = seriousFlags(s.flags).length;
     const search = [r.package, r.start.serverName ?? "", ...r.tools.map((t) => t.name + " " + t.description)].join(" ").toLowerCase().slice(0, 30_000);
-    await this.init();
     const now = new Date().toISOString();
+    const done = () => this.db.run("UPDATE requests SET done_at = ? WHERE package = ? AND done_at IS NULL", [now, r.package]);
+    const stored = (await this.all("SELECT version, outcome, ran_at FROM reports WHERE package = ?", [r.package])) as { version: string; outcome: string; ran_at: string }[];
+    const same = stored.find((x) => x.version === r.version);
+    // A run that found nothing must not hide one that did: a failed lookup of a package already reported, or a
+    // run that did not finish, where the same version started before. An older run never replaces a newer one,
+    // so a report and its token cannot be sent again later to undo a fresh report.
+    const keep = (s.outcome === "not-found" && stored.length > 0) || (s.outcome === "timed-out" && same?.outcome === "started") || (same !== undefined && same.ran_at >= r.ranAt);
+    if (keep) {
+      await done();
+      return { ok: true, package: r.package, version: r.version, outcome: s.outcome, kept: false };
+    }
     await this.db.run(
-      `INSERT INTO reports (package, version, ran_at, admitted_at, latest, outcome, tools, contacts, flags, serious, tools_hash, contact_names, need_names, search, report, token) VALUES (?,?,?,?,0,?,?,?,?,?,?,?,?,?,?,?)
-       ON CONFLICT (package, version) DO UPDATE SET ran_at = excluded.ran_at, admitted_at = excluded.admitted_at, outcome = excluded.outcome, tools = excluded.tools, contacts = excluded.contacts, flags = excluded.flags, serious = excluded.serious, tools_hash = excluded.tools_hash, contact_names = excluded.contact_names, need_names = excluded.need_names, search = excluded.search, report = excluded.report, token = excluded.token`.replace(/\s+/g, " "),
+      `INSERT INTO reports (package, version, ran_at, admitted_at, latest, outcome, tools, contacts, flags, serious, tools_hash, contact_names, need_names, search, report, token) VALUES (?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT (package, version) DO UPDATE SET latest = 1, ran_at = excluded.ran_at, admitted_at = excluded.admitted_at, outcome = excluded.outcome, tools = excluded.tools, contacts = excluded.contacts, flags = excluded.flags, serious = excluded.serious, tools_hash = excluded.tools_hash, contact_names = excluded.contact_names, need_names = excluded.need_names, search = excluded.search, report = excluded.report, token = excluded.token`.replace(/\s+/g, " "),
       [r.package, r.version, r.ranAt, now, s.outcome, s.tools, s.contacts.length, s.flags.length, serious, r.toolsHash, JSON.stringify(s.contacts), JSON.stringify(s.needs), search, reportText as string, token as string],
     );
-    // The version reported last is the one shown for the package.
-    await this.db.run("UPDATE reports SET latest = CASE WHEN version = ? THEN 1 ELSE 0 END WHERE package = ?", [r.version, r.package]);
-    await this.db.run("UPDATE requests SET done_at = ? WHERE package = ? AND done_at IS NULL", [now, r.package]);
-    return { ok: true, package: r.package, version: r.version, outcome: s.outcome };
+    // The version reported last is the one shown for the package. If this step fails the package shows twice
+    // until its next report, which is better than not at all.
+    await this.db.run("UPDATE reports SET latest = 0 WHERE package = ? AND version <> ?", [r.package, r.version]);
+    await done();
+    return { ok: true, package: r.package, version: r.version, outcome: s.outcome, kept: true };
   }
 
   /** The newest report on a package, with its earlier versions. */
@@ -81,7 +97,8 @@ export class ReportBook {
     const row = (await this.all("SELECT report, token FROM reports WHERE package = ? AND latest = 1", [pkg]))[0];
     if (!row) return null;
     const report = JSON.parse(String(row.report)) as Report;
-    const history = (await this.all(`SELECT ${COLUMNS} FROM reports WHERE package = ? ORDER BY id DESC LIMIT 20`, [pkg])).map(toRow);
+    // Newest run first, with the version shown at the top whatever its run time.
+    const history = (await this.all(`SELECT ${COLUMNS} FROM reports WHERE package = ? ORDER BY latest DESC, ran_at DESC LIMIT 20`, [pkg])).map(toRow);
     return { report, summary: summarize(report), token: String(row.token), history };
   }
 
@@ -94,7 +111,7 @@ export class ReportBook {
 
   /** Reports, one per package. Searching puts the ones that start first; otherwise newest first. */
   async list(query: ReportQuery = {}): Promise<ReportRow[]> {
-    const where = ["latest = 1"];
+    const where = ["latest = 1", "outcome <> 'not-found'"];
     const args: (string | number)[] = [];
     for (const term of (typeof query.q === "string" ? query.q : "").toLowerCase().split(/\s+/).filter(Boolean).slice(0, 8)) {
       where.push("instr(search, ?) > 0");
@@ -120,29 +137,53 @@ export class ReportBook {
 
   /** Asks for a report on a package. Reported already: says so. Otherwise it joins the queue the report
    * workflow works through, if npm has a package of that name. */
-  async ask(pkg: unknown): Promise<AskOutcome> {
+  async ask(pkg: unknown, sender = "unknown"): Promise<AskOutcome> {
     if (!validPackage(pkg)) return { ok: false, reason: "that is not an npm package name" };
     // A report less than a day old stands; after that, asking again gets the newest version looked at.
     const last = (await this.all("SELECT max(admitted_at) AS at FROM reports WHERE package = ?", [pkg]))[0]?.at;
     if (typeof last === "string" && Date.now() - Date.parse(last) < 86_400_000) return { ok: true, status: "reported", package: pkg };
-    if ((await this.all("SELECT 1 FROM requests WHERE package = ? AND done_at IS NULL", [pkg])).length) return { ok: true, status: "already-queued", package: pkg };
+    if ((await this.all(`SELECT 1 FROM requests WHERE package = ? AND done_at IS NULL AND tries < ${MAX_TRIES}`, [pkg])).length) return { ok: true, status: "already-queued", package: pkg };
     if (Number((await this.all("SELECT count(*) AS n FROM requests WHERE done_at IS NULL"))[0]?.n ?? 0) >= 300) return { ok: false, reason: "the queue is full, try again in an hour" };
-    if (this.options.exists && !(await this.options.exists(pkg))) return { ok: false, reason: "npm has no package of that name" };
-    await this.db.run("INSERT INTO requests (package, asked_at, done_at) VALUES (?, ?, NULL) ON CONFLICT (package) DO UPDATE SET asked_at = excluded.asked_at, done_at = NULL", [pkg, new Date().toISOString()]);
+    const refusal = this.options.eligible ? await this.options.eligible(pkg) : null;
+    if (refusal) return { ok: false, reason: refusal };
+    // A daily allowance per sender, kept in the database so it holds across restarts. The sender is stored
+    // only as a hash, and only for counting.
+    const who = createHash("sha256").update("asker:" + sender).digest("hex").slice(0, 32);
+    const day = new Date().toISOString().slice(0, 10);
+    await this.db.run("INSERT INTO askers (who, day, n) VALUES (?, ?, 1) ON CONFLICT (who, day) DO UPDATE SET n = n + 1", [who, day]);
+    if (Number((await this.all("SELECT n FROM askers WHERE who = ? AND day = ?", [who, day]))[0]?.n ?? 0) > PER_SENDER_PER_DAY) return { ok: false, reason: "too many requests from this sender today" };
+    await this.db.run("INSERT INTO requests (package, asked_at, done_at, tries) VALUES (?, ?, NULL, 0) ON CONFLICT (package) DO UPDATE SET asked_at = excluded.asked_at, done_at = NULL, tries = 0", [pkg, new Date().toISOString()]);
     return { ok: true, status: "queued", package: pkg };
   }
 
-  async queue(limit?: number): Promise<string[]> {
-    return (await this.all(`SELECT package FROM requests WHERE done_at IS NULL ORDER BY asked_at ASC LIMIT ${clamp(limit, 40, 100)}`)).map((r) => String(r.package));
+  /** Packages waiting for a report, oldest first. With the report workflow's own token the call takes them:
+   * each gets an attempt counted, and one that has used its attempts without a report is given up on. */
+  async queue(limit?: number, takerToken?: string): Promise<string[]> {
+    const waiting = (await this.all(`SELECT package FROM requests WHERE done_at IS NULL AND tries < ${MAX_TRIES} ORDER BY asked_at ASC LIMIT ${clamp(limit, 40, 100)}`)).map((r) => String(r.package));
+    if (takerToken && waiting.length && (await isReportWorkflow(takerToken, this.options.policy, this.options.keys))) {
+      await this.db.run(`UPDATE requests SET tries = tries + 1 WHERE package IN (${waiting.map(() => "?").join(",")})`, waiting);
+    }
+    return waiting;
+  }
+
+  async isQueued(pkg: string): Promise<boolean> {
+    return (await this.all(`SELECT 1 FROM requests WHERE package = ? AND done_at IS NULL AND tries < ${MAX_TRIES}`, [pkg])).length > 0;
   }
 }
 
-/** Whether npm has a package of this name. Used before queueing, so the queue holds only real packages. */
-export const onNpm = async (name: string): Promise<boolean> => {
+/** Why a package may not join the queue; null when it may. It must be on npm and present itself as an MCP
+ * server, so the queue and the numbers are about MCP servers and not about whatever anyone types. */
+export const mcpServerOnNpm = async (name: string): Promise<string | null> => {
   try {
-    const res = await fetch("https://registry.npmjs.org/" + name.replace("/", "%2F"), { method: "HEAD", signal: AbortSignal.timeout(8000) });
-    return res.status === 200;
+    const res = await fetch(`https://registry.npmjs.org/${name}/latest`, { signal: AbortSignal.timeout(8000) });
+    if (res.status === 404) return "npm has no package of that name";
+    if (!res.ok) return "npm did not answer, try again in a minute";
+    const meta = (await res.json()) as { name?: unknown; keywords?: unknown; description?: unknown; bin?: unknown };
+    const text = [meta.name, meta.description, ...(Array.isArray(meta.keywords) ? meta.keywords : [])].filter((x) => typeof x === "string").join(" ");
+    if (!/mcp|model[ -]?context[ -]?protocol/i.test(text)) return "that package does not present itself as an MCP server (no 'mcp' in its name, keywords or description)";
+    if (!meta.bin) return "that package has no command to start, so it cannot be run as a server";
+    return null;
   } catch {
-    return false;
+    return "npm did not answer, try again in a minute";
   }
 };

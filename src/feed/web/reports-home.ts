@@ -27,7 +27,7 @@ export function homePage(o: { origin: string; rows: ReportRow[]; state: State; q
 <div class="fact"><b>${o.state.contacting}</b><span>contact something just by starting</span></div>
 <div class="fact"><b>${o.state.serious}</b><span>have wording worth reading</span></div>
 </div>
-<p class="small"><a href="/state">The state of MCP servers, in numbers</a></p>`;
+<p class="small"><a href="/state">The state of MCP servers, in numbers</a> · <a href="#listed">Made one? Get it listed</a></p>`;
   const chips = [["", "All"], ["started", "Start with no setup"], ["needs-setup", "Need setup"], ["contacts", "Contact something"]] as const;
   const heading = filtered ? `${o.rows.length >= 60 ? "First 60 reports" : plural(o.rows.length, "report")}${o.q ? ` matching "${esc(o.q)}"` : ""} <a class="small" href="/">clear</a>` : "Latest reports";
   const body = `${intro}

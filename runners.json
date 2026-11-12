@@ -20,6 +20,8 @@
   "reports": {
     "repository": "itsHaddad/bragproof",
     "workflow": "itsHaddad/bragproof/.github/workflows/report.yml",
-    "ref": "refs/heads/main"
+    "ref": "refs/heads/main",
+    "repositoryId": "1454621183",
+    "ownerId": "11473261"
   }
 }

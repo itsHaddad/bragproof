@@ -41,6 +41,18 @@ describe("reading a report", () => {
     expect(outcomeOf(r)).toBe("needs-setup");
     expect(needsOf(r)).toEqual(["GITHUB_PERSONAL_ACCESS_TOKEN"]);
   });
+  test("an error code is not mistaken for a setting", () => {
+    const r = failed("Error: SQLITE_CANTOPEN: unable to open database file\ngetaddrinfo EAI_AGAIN db.internal");
+    expect(needsOf(r)).toEqual([]);
+    expect(outcomeOf(r)).toBe("did-not-start");
+  });
+  test("ordinary wording is not flagged", () => {
+    const r = report({ tools: [{ name: "list", description: "Lists items. Do not show archived items. Signs with the given private key. \u{1F468}\u200D\u{1F469} family.", params: [] }] });
+    expect(flagsOf(r)).toEqual([]);
+  });
+  test("a connection to an address that no lookup returned counts as a contact", () => {
+    expect(summarize(report({ network: { names: ["registry.npmjs.org"], conns: ["203.0.113.9:443"] } })).contacts).toEqual(["203.0.113.9:443"]);
+  });
   test("other ways of not starting are told apart", () => {
     expect(outcomeOf(failed("connect ECONNREFUSED 127.0.0.1:5432"))).toBe("needs-service");
     expect(outcomeOf(failed("Error: Cannot find module '../build/Release/better_sqlite3.node'"))).toBe("needs-build");
@@ -129,7 +141,7 @@ describe("reports in the feed", () => {
     return post("/v1/reports", { report: text, token: attestor.mint(c) });
   };
   beforeEach(() => {
-    handle = feedHandler(new FeedService(new FeedDb(":memory:"), { policy, keys: attestor.keys, reportPolicy, packageExists: async (name) => name !== "no-such-thing" }));
+    handle = feedHandler(new FeedService(new FeedDb(":memory:"), { policy, keys: attestor.keys, reportPolicy, packageEligible: async (name) => (name === "no-such-thing" ? "npm has no package of that name" : null) }));
   });
 
   test("a genuine report is stored and shown; a forged one is not", async () => {
@@ -155,6 +167,11 @@ describe("reports in the feed", () => {
     expect(page).not.toContain("<img src=x");
     expect(page).not.toContain('href="javascript:');
     expect(page).not.toContain("<i>");
+    await send({ ...failed("</pre><script>alert(2)</script>"), package: "hostile", wrote: ["/tmp/<b>x</b>"], network: { names: ["registry.npmjs.org", "<u>evil</u>.example"], conns: [] }, install: { ok: true, bins: ["<s>"], scripts: ["<em>"] } });
+    for (const path of ["/r/hostile", "/state", "/?q=%3Cscript%3E", "/"]) {
+      const html = await (await get(path)).text();
+      expect(html).not.toMatch(/<script>|<u>|<b>x|<s>|<em>/);
+    }
   });
   test("a newer version becomes the one shown, and a change in tools is said", async () => {
     await send(report());
@@ -175,6 +192,32 @@ describe("reports in the feed", () => {
     await send(report());
     expect(((await (await get("/v1/queue")).json()) as any).packages).toEqual([]);
     expect(((await (await post("/v1/requests", { package: "@example/echo" })).json()) as any).status).toBe("reported");
+  });
+  test("a run that found nothing does not hide one that found something", async () => {
+    await send(report());
+    const blank = (error: string, version = "1.0.0"): Report => ({ ...report({ version, install: { ok: false, error }, start: { ok: false }, tools: [] }), network: undefined });
+    expect(((await (await send(blank("the run did not finish"))).json()) as any).kept).toBe(false);
+    expect(((await (await send(blank("no such package on the npm registry", "0.0.0"))).json()) as any).kept).toBe(false);
+    const body = (await (await get("/v1/reports/@example/echo")).json()) as any;
+    expect(body.summary.outcome).toBe("started");
+    expect(body.report.version).toBe("1.0.0");
+  });
+  test("an older report sent again does not undo a newer one", async () => {
+    const old = report({ ranAt: new Date(Date.now() - 60_000).toISOString() });
+    await send(old);
+    await send(failed("Error: API_KEY is required"));
+    expect(((await (await send(old)).json()) as any).kept).toBe(false);
+    expect(((await (await get("/v1/reports/@example/echo")).json()) as any).summary.outcome).toBe("needs-setup");
+  });
+  test("only the report workflow can use up a package's attempts, and after three it is given up on", async () => {
+    await post("/v1/requests", { package: "stuck-server" });
+    const take = (token?: string) => handle(new Request("https://feed.test/v1/queue?take=1", token ? { headers: { authorization: "Bearer " + token } } : {})).then((r) => r.json() as Promise<{ packages: string[] }>);
+    const worker = () => attestor.mint({ ...claimsFor(""), aud: "bragproof-queue" });
+    for (let i = 0; i < 5; i++) expect((await take()).packages).toEqual(["stuck-server"]);
+    for (let i = 0; i < 5; i++) expect((await take(attestor.mint({ ...claimsFor(""), aud: "bragproof-queue", repository: "mallory/x" }))).packages).toEqual(["stuck-server"]);
+    for (let i = 0; i < 3; i++) expect((await take(worker())).packages).toEqual(["stuck-server"]);
+    expect((await take(worker())).packages).toEqual([]);
+    expect((await post("/v1/requests", { package: "stuck-server" })).status).toBe(202);
   });
   test("one sender cannot flood the queue", async () => {
     const codes: number[] = [];

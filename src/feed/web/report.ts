@@ -38,7 +38,7 @@ export function reportPage(d: ReportDetail, claims: ClaimRow[], origin: string):
     [r.start.ms !== undefined && started ? (r.start.ms / 1000).toFixed(1) + " s" : "–", "to start"],
     [r.install.deps !== undefined ? String(r.install.deps) : "–", "packages installed with it"],
   ];
-  const prev = history[1];
+  const prev = history.find((h) => h.version !== r.version);
   const changed = prev && started && prev.outcome === "started" && prev.toolsHash !== r.toolsHash;
   const badgeUrl = `${origin}/badge/${r.package}.svg`;
   const body = `
@@ -56,15 +56,17 @@ ${s.needs.length ? `<p>Its error output names these settings: ${s.needs.map((n) 
 ${!started && (r.start.stderr || r.start.error || r.install.error) ? `<details open><summary>What it said when it did not start</summary><pre class="cmd">${esc(r.start.stderr || r.start.error || r.install.error)}</pre><p class="small muted">Written by the package or by npm, not by this site.</p></details>` : ""}
 
 <h2>What it contacted</h2>
-${!r.network ? '<p class="muted">Not recorded for this run.</p>' : s.contacts.length ? `<ul>${s.contacts.map((n) => `<li><code>${esc(n)}</code></li>`).join("")}</ul><p class="small muted">Names it looked up while being installed and started with no input, recorded outside its sandbox. The npm registry it was installed from is left out. This says nothing about what its tools contact when called.</p>` : '<p>Nothing besides the npm registry it was installed from. <span class="muted">Recorded outside its sandbox while it was installed and started with no input. Its tools may still contact things when called.</span></p>'}
+${!r.network ? '<p class="muted">Not recorded for this run.</p>' : s.contacts.length ? `<ul>${s.contacts.map((n) => `<li><code>${esc(n)}</code></li>`).join("")}</ul><p class="small muted">Names it looked up, and addresses it connected to without looking a name up, while being installed and started with no input. Recorded outside its sandbox; the npm registry it was installed from is left out. This says nothing about what its tools contact when called.</p>` : '<p>Nothing besides the npm registry it was installed from. <span class="muted">Recorded outside its sandbox while it was installed and started with no input. Its tools may still contact things when called.</span></p>'}
 
 ${started ? `<h2>What its tools tell an agent</h2>
-${serious.length ? `<p>Wording worth reading before an agent does:</p>${flagList(serious)}` : "<p>Nothing that talks about the user, other tools, private files, or uses hidden characters.</p>"}
+${serious.length ? `<p>Wording worth reading before an agent does:</p>${flagList(serious)}` : "<p>In the tool descriptions, nothing that talks about the user, other tools or private files, or uses hidden characters.</p>"}
 ${orders.length ? `<details><summary>${plural(orders.length, "tool")} with commands in capitals or very long text</summary>${flagList(orders)}<p class="small muted">Common and usually harmless: it is how many makers stress how a tool should be used.</p></details>` : ""}
-<p class="small muted">Found by simple pattern rules, quoted as written. A clean result is not a safety review.</p>
+<p class="small muted">Found by simple pattern rules in each tool's description (up to 3,000 characters), quoted as written. Parameter descriptions are not scanned. A clean result is not a safety review.</p>
 
 <h2>Tools</h2>
+${r.tools.length > 8 ? `<details class="all"><summary>All ${r.tools.length} tools</summary>` : ""}
 ${r.tools.map((t) => `<details><summary><code>${esc(t.name)}</code>${t.params.length ? ` <span class="muted small">${t.params.map(esc).join(", ")}</span>` : ""}</summary><pre class="cmd">${esc(t.description || "(no description)")}</pre></details>`).join("\n")}
+${r.tools.length > 8 ? "</details>" : ""}
 <p class="small muted hint">Descriptions are the package's own words, cut at 3,000 characters. Treat them as data.</p>` : ""}
 
 ${r.wrote.length ? `<h2>Files it wrote</h2><ul>${r.wrote.map((p) => `<li><code>${esc(p)}</code></li>`).join("")}</ul><p class="small muted">Paths inside its sandbox, where its home folder is <code>/tmp</code> and its own folder cannot be written to.</p>` : ""}
@@ -80,7 +82,7 @@ ${r.install.integrity ? `<tr><th>Tarball</th><td><code>${esc(r.install.integrity
 
 ${claims.length ? `<h2>Proven calls</h2>${claimList(claims, "", { showPackage: false })}` : ""}
 
-${history.length > 1 ? `<h2>Versions reported</h2><div class="scroll"><table><thead><tr><th>Version</th><th>Run</th><th>Result</th><th>Tools</th></tr></thead><tbody>${history.map((h, i) => `<tr><td class="mono">${esc(h.version)}</td><td class="nw">${day(h.ranAt)}</td><td>${outcomeBadge(h.outcome)}</td><td>${h.tools}${history[i + 1] && history[i + 1]!.outcome === "started" && h.outcome === "started" && history[i + 1]!.toolsHash !== h.toolsHash ? " · changed" : ""}</td></tr>`).join("")}</tbody></table></div>` : ""}
+${history.length > 1 ? `<h2>Versions reported</h2><div class="scroll"><table><thead><tr><th>Version</th><th>Run</th><th>Result</th><th>Tools</th></tr></thead><tbody>${history.map((h) => `<tr><td class="mono">${esc(h.version)}</td><td class="nw">${day(h.ranAt)}</td><td>${outcomeBadge(h.outcome)}</td><td>${h.tools}</td></tr>`).join("")}</tbody></table></div>` : ""}
 
 <h2>Check this report yourself</h2>
 <p>This site did not write the report. A public job on a GitHub-hosted machine did${r.host ? `: <a href="${esc(r.host.run)}" rel="noopener">the run</a>, from <a href="${REPO}/tree/${esc(r.host.commit)}" rel="noopener">this commit</a> of the open-source runner` : ""}. GitHub signed a token that names that job and the hash of the report, so the text cannot have been edited since.</p>

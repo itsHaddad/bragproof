@@ -6,14 +6,37 @@ import { type Report, reportProblems } from "./types.ts";
 
 /** Which runs a verifier believes made a report: one workflow file, on one branch of one repository, on a
  * machine GitHub hosts. */
-export type ReportPolicy = { repository: string; workflow: string; ref: string; maxAgeSeconds: number };
+export type ReportPolicy = { repository: string; workflow: string; ref: string; maxAgeSeconds: number; repositoryId?: string; ownerId?: string };
 export const defaultReportPolicy = (): ReportPolicy => ({ ...trusted.reports, maxAgeSeconds: 900 });
 
+export const QUEUE_AUDIENCE = "bragproof-queue";
 export const reportAudience = (reportText: string) => "bragproof-report:" + sha256Hex(reportText);
 
 export type ReportVerdict = { ok: true; report: Report; commit: string } | { ok: false; reason: string };
 
 const defaultKeys = issuerKeys(GITHUB_ISSUER);
+
+/** Why a token's claims do not describe a job of the report workflow; empty when they do. The repository is
+ * checked by its number as well as its name, because a name can be taken over after a rename. */
+function notTheWorkflow(claims: Record<string, any>, policy: ReportPolicy): string {
+  if (claims.iss !== GITHUB_ISSUER) return "token issuer is not GitHub Actions";
+  if (claims.runner_environment !== "github-hosted") return "the job ran on a machine GitHub does not host";
+  if (claims.repository !== policy.repository) return "the job did not run in the report repository";
+  if (policy.repositoryId && String(claims.repository_id) !== policy.repositoryId) return "the job ran in another repository of the same name";
+  if (policy.ownerId && String(claims.repository_owner_id) !== policy.ownerId) return "the job ran in a repository of another owner";
+  if (claims.job_workflow_ref !== `${policy.workflow}@${policy.ref}`) return `the job was not the report workflow on its main branch (${String(claims.job_workflow_ref ?? "unknown").slice(0, 120)})`;
+  return "";
+}
+
+/** Whether a bearer token shows that the report workflow itself is asking, just now. */
+export async function isReportWorkflow(token: string, policy: ReportPolicy = defaultReportPolicy(), keys: JwksSource = defaultKeys): Promise<boolean> {
+  try {
+    const { claims } = await verifyJwt(token, keys);
+    return claims.aud === QUEUE_AUDIENCE && !notTheWorkflow(claims, policy) && typeof claims.iat === "number" && Math.abs(Date.now() / 1000 - claims.iat) <= policy.maxAgeSeconds;
+  } catch {
+    return false;
+  }
+}
 
 /** Checks that `reportText`, byte for byte, is what a run of the report workflow produced.
  * The token is GitHub's signed statement about one job; its audience carries the hash of the report, so the
@@ -37,11 +60,9 @@ export async function verifyReport(reportText: string, token: string, policy: Re
   } catch (e) {
     return no((e as Error).message);
   }
-  if (claims.iss !== GITHUB_ISSUER) return no("token issuer is not GitHub Actions");
   if (claims.aud !== reportAudience(reportText)) return no("token does not carry this report's hash: the report was changed, or the token belongs to another");
-  if (claims.runner_environment !== "github-hosted") return no("the job ran on a machine GitHub does not host");
-  if (claims.repository !== policy.repository) return no("the job did not run in the report repository");
-  if (claims.job_workflow_ref !== `${policy.workflow}@${policy.ref}`) return no(`the job was not the report workflow on its main branch (${String(claims.job_workflow_ref ?? "unknown").slice(0, 120)})`);
+  const not = notTheWorkflow(claims, policy);
+  if (not) return no(not);
   const commit = typeof claims.job_workflow_sha === "string" ? claims.job_workflow_sha : "";
   if (!/^[0-9a-f]{40}$/.test(commit) || report.host?.commit !== commit) return no("the report does not name the commit the workflow ran from");
   if (!report.host.run.endsWith(`/${policy.repository}/actions/runs/${claims.run_id}`)) return no("the report does not name the run that made it");

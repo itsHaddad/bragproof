@@ -1,5 +1,5 @@
 import { feedHandler } from "../src/feed/server.ts";
-import { onNpm } from "../src/feed/reports.ts";
+import { mcpServerOnNpm } from "../src/feed/reports.ts";
 import { FeedService } from "../src/feed/service.ts";
 import { FeedStore } from "../src/feed/store.ts";
 import { type D1, d1Executor } from "./d1.ts";
@@ -11,7 +11,7 @@ let handler: ReturnType<typeof feedHandler> | null = null;
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
-    handler ??= feedHandler(new FeedService(new FeedStore(d1Executor(env.DB)), { selfReportedCap: 0, packageExists: onNpm }), { publicOrigin: env.PUBLIC_ORIGIN });
+    handler ??= feedHandler(new FeedService(new FeedStore(d1Executor(env.DB)), { selfReportedCap: 0, packageEligible: mcpServerOnNpm }), { publicOrigin: env.PUBLIC_ORIGIN });
     // Cloudflare sets this header itself; a client cannot forge it on a request that reaches the Worker.
     const sender = req.headers.get("cf-connecting-ip") ?? "unknown";
     if (req.method === "POST" && !(Number(req.headers.get("content-length") ?? "x") <= (new URL(req.url).pathname === "/v1/reports" ? 400_000 : 100_000))) return Response.json({ error: "body too large, or its length was not stated" }, { status: 413 });

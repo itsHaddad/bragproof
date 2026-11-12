@@ -13,7 +13,7 @@ export const outcomeLabel: Record<Outcome, string> = {
   "wrong-platform": "Not for Linux x64",
   "no-start-command": "No clear start command",
   "not-found": "Not on the npm registry",
-  "timed-out": "Did not answer in time",
+  "timed-out": "Run did not finish",
   "did-not-install": "Did not install",
   "did-not-start": "Did not start",
 };
@@ -27,7 +27,7 @@ export const outcomeHint: Record<Outcome, string> = {
   "wrong-platform": "The package says it does not support Linux on x64.",
   "no-start-command": "The package has no bin, or several with none that is clearly the server.",
   "not-found": "No package of this name is published on npm.",
-  "timed-out": "It was installed and started but did not answer within the time allowed.",
+  "timed-out": "The run produced no report: it did not answer within the time allowed, or what it produced could not be kept.",
   "did-not-install": "npm could not install it the way the runner installs: from the registry only, without install scripts.",
   "did-not-start": "It exited or failed before answering, and its output does not say what it needs.",
 };
@@ -37,16 +37,18 @@ const said = (r: Report) => [r.install.error, r.start.error, r.start.stderr].fil
 /** Environment variable names its error output mentions: the likeliest things it wants set. */
 export function needsOf(r: Report): string[] {
   if (r.start.ok) return [];
-  const noise = /^(ERR_|NODE_|UV_|NPM_|MODULE_NOT_FOUND$|BRAGPROOF_)/;
+  // Error codes look like settings (SQLITE_CANTOPEN, EAI_AGAIN); a setting has a part that says what it holds.
+  const noise = /^(ERR_|NODE_|UV_|NPM_|SQLITE_|EAI_|E[A-Z]+_|HTTP_|MODULE_NOT_FOUND$|BRAGPROOF_)/;
+  const part = /(^|_)(KEY|TOKEN|SECRET|URL|URI|ID|PATH|HOST|PORT|USER|USERNAME|PASSWORD|PASS|DSN|ENDPOINT|REGION|PROJECT|ORG|ACCOUNT|EMAIL|DIR|FILE|CONFIG|CREDENTIALS|DATABASE|DB|NAME|ADDRESS|DOMAIN|WORKSPACE|TENANT|API|AUTH|PAT)(_|$)/;
   const found = said(r).match(/\b[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+\b/g) ?? [];
-  return [...new Set(found)].filter((n) => !noise.test(n) && n.length <= 60).slice(0, 8);
+  return [...new Set(found)].filter((n) => !noise.test(n) && part.test(n) && n.length <= 60).slice(0, 8);
 }
 
 export function outcomeOf(r: Report): Outcome {
   const text = said(r);
   if (!r.install.ok) {
     if (/no such package/.test(text)) return "not-found";
-    if (/did not finish in time/.test(text)) return "timed-out";
+    if (/the run did not finish|not accepted by the feed/.test(text)) return "timed-out";
     if (/EBADPLATFORM|notsup/.test(text)) return "wrong-platform";
     if (/the package has \d+ bins/.test(text)) return "no-start-command";
     return "did-not-install";
@@ -59,8 +61,9 @@ export function outcomeOf(r: Report): Outcome {
   return "did-not-start";
 }
 
-/** Names it looked up besides the registry it was installed from. Recorded outside its sandbox. */
-export const contactsOf = (r: Report): string[] => (r.network?.names ?? []).filter((n) => n !== "registry.npmjs.org");
+/** Names it looked up besides the registry it was installed from, and addresses it connected to without
+ * looking any name up. Recorded outside its sandbox. */
+export const contactsOf = (r: Report): string[] => [...(r.network?.names ?? []).filter((n) => n !== "registry.npmjs.org"), ...(r.network?.conns ?? [])];
 
 export type Flag = { kind: "orders" | "about-others" | "private-files" | "hidden-characters" | "very-long"; tool: string; quote: string };
 
@@ -73,12 +76,13 @@ export const flagLabel: Record<Flag["kind"], string> = {
 };
 
 const RULES: [Flag["kind"], RegExp][] = [
-  ["about-others", /\b(do not|don't|never) (tell|mention|inform|reveal|show)\b|without (telling|asking|informing) the user|ignore (all |any )?(previous|prior|other|earlier)|instead of (using )?(any |the )?other tools?|do not use (any )?other/i],
-  ["private-files", /\.ssh\b|\bid_rsa\b|\.aws\/|private key|seed phrase|\/etc\/passwd|\bmcp\.json\b/i],
+  ["about-others", /\b(do not|don't|never) (tell|mention|inform|reveal)\b[^.\n]{0,40}\buser\b|without (telling|asking|informing) the user|ignore (all |any )?(previous|prior|other|earlier)|instead of (using )?(any |the )?other tools?|do not use (any )?other/i],
+  ["private-files", /\.ssh\b|\bid_rsa\b|\.aws\/|seed phrase|\/etc\/passwd/i],
   ["orders", /\b(MUST|ALWAYS|NEVER|IMPORTANT|CRITICAL|MANDATORY)\b|<important>|before (using|calling) any other tool|call this (tool )?first/],
 ];
 // Zero-width, bidirectional-control and tag characters: invisible to a person reading, visible to a model.
-const HIDDEN = /[​-‏‪-‮⁠-⁤\u{e0000}-\u{e007f}]/u;
+// Joiners and direction marks (U+200C to U+200F) are left out: ordinary emoji and Arabic or Hebrew text use them.
+const HIDDEN = /[\u200b\u202a-\u202e\u2060-\u2064\u{e0000}-\u{e007f}]/u;
 
 const around = (text: string, at: number, length: number) => text.slice(Math.max(0, at - 60), at + length + 100).replace(/\s+/g, " ").trim();
 

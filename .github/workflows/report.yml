@@ -63,8 +63,11 @@ jobs:
           SHARDS: ${{ strategy.job-total }}
           FEED: https://bragproof.smaverk.com
         run: |
+          oidc() { curl -fsS --max-time 20 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$1" | jq -r '.value // empty' || true; }
           if [ "$SOURCE" = queue ]; then
-            curl -fsS --max-time 20 "$FEED/v1/queue?limit=40" | jq -r '.packages[]' > list.txt
+            # Taking from the queue counts an attempt against each package, so one that never yields a report
+            # is given up on. Only this workflow may take; the token says who is asking.
+            curl -fsS --max-time 20 -H "authorization: Bearer $(oidc bragproof-queue)" "$FEED/v1/queue?limit=40&take=1" | jq -r '.packages[]' > list.txt
           else
             echo "$SOURCE" | grep -qE '^[a-z0-9][a-z0-9._-]*\.json$' || { echo "bad source"; exit 1; }
             jq -r '.[]' "tools/$SOURCE" | awk -v n="$SHARDS" -v s="$SHARD" 'NR % n == s' > list.txt
@@ -74,31 +77,107 @@ jobs:
           command -v tcpdump >/dev/null || sudo apt-get install -y -qq tcpdump >/dev/null
           empty=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
           blank() { jq -nc --arg p "$1" --arg v "$2" --arg t "$(date -u +%FT%TZ)" --arg e "$3" --arg h "$empty" '{v:1,package:$p,version:$v,ranAt:$t,install:{ok:false,error:$e},start:{ok:false},tools:[],toolsHash:$h,wrote:[]}'; }
+          # Signs a report (its exact bytes) and sends it. Prints the feed's status code.
+          send() {
+            hash=$(sha256sum < report.json | cut -d' ' -f1)
+            jq -nc --rawfile r report.json --arg t "$(oidc "bragproof-report:$hash")" '{report: $r, token: $t}' > post.json
+            curl -sS --max-time 30 -o reply.txt -w '%{http_code}' -X POST -H 'content-type: application/json' --data-binary @post.json "$FEED/v1/reports" || echo 000
+          }
+          stamp() { jq -cj --arg p "$name" --arg v "$version" --arg c "$GITHUB_SHA" --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" '. + {package: $p, version: $v, host: {commit: $c, run: $run}}'; }
           while read -r name; do
             echo "$name" | grep -qE '^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$' || continue
             echo "== $name"
-            version=$(curl -fsS --max-time 20 "https://registry.npmjs.org/$name/latest" | jq -r '.version // empty' || true)
+            code=$(curl -sS --max-time 20 -o latest.json -w '%{http_code}' "https://registry.npmjs.org/$name/latest" || echo 000)
+            version=$(jq -r '.version // empty' latest.json 2>/dev/null || true)
             : > cap.txt
-            if echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9_.]+)?$'; then
-              sudo tcpdump -i docker0 -nn -l -p 'udp dst port 53 or (tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0)' > cap.txt 2>/dev/null &
+            if [ "$code" = 200 ] && echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9_.-]+)?$'; then
+              sudo tcpdump -i docker0 -nn -l -p 'udp port 53 or (tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0)' > cap.txt 2>/dev/null &
               sleep 2
-              line=$(timeout 300 docker run --rm --security-opt no-new-privileges --memory 2g --pids-limit 512 --entrypoint bun runner src/cli/main.ts report "$name@$version" 2>/dev/null </dev/null | grep '^BRAGPROOF-REPORT:' | cut -d: -f2- || true)
+              line=$(timeout -k 5 300 docker run --rm --init --name bp-run --security-opt no-new-privileges --memory 2g --pids-limit 512 --entrypoint bun runner src/cli/main.ts report "$name@$version" 2>/dev/null </dev/null | grep -m1 '^BRAGPROOF-REPORT:' | cut -d: -f2- || true)
+              # Nothing of this package may still be running when the next one is watched.
+              docker rm -f bp-run >/dev/null 2>&1 || true
               sleep 1; sudo pkill -x tcpdump || true; sleep 1
-              [ -n "$line" ] || line=$(blank "$name" "$version" "the run did not finish in time")
-            else
+              [ -n "$line" ] || line=$(blank "$name" "$version" "the run did not finish")
+            elif [ "$code" = 404 ]; then
               version=0.0.0
               line=$(blank "$name" "$version" "no such package on the npm registry")
+            else
+              echo "registry answered $code; skipped"; continue
             fi
-            names=$({ grep -oE ' (A|AAAA)\? [^ ]+' cap.txt || true; } | awk '{print $2}' | sed 's/\.$//' | sort -u | head -60 | jq -R . | jq -sc .)
-            conns=$({ grep -E 'Flags \[S\]' cap.txt | grep -oE '> [0-9.]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1:\2/' | sort -u | head -60 | jq -R . | jq -sc .)
-            printf '%s' "$line" | jq -cj --argjson names "$names" --argjson conns "$conns" --arg c "$GITHUB_SHA" --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" '. + {network: {names: $names, conns: $conns}, host: {commit: $c, run: $run}}' > report.json
-            hash=$(sha256sum < report.json | cut -d' ' -f1)
-            token=$(curl -fsS --max-time 20 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=bragproof-report:$hash" | jq -r '.value // empty' || true)
-            jq -nc --rawfile r report.json --arg t "$token" '{report: $r, token: $t}' > post.json
-            curl -sS --max-time 30 -X POST -H 'content-type: application/json' --data-binary @post.json "$FEED/v1/reports" | cut -c1-200 || true
-            echo
-            jq -c '{package, version, installed: .install.ok, started: .start.ok, tools: (.tools | length), names: .network.names}' report.json >> summary.jsonl
+            # Every kind of name lookup, and connections to addresses no lookup returned (a hard-coded address).
+            { grep -oE ' [A-Z][A-Z0-9]*\? [^ ]+' cap.txt || true; } | awk '{print $2}' | sed 's/\.$//' | sort -u > names.txt
+            { grep -oE ' A [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' cap.txt || true; } | awk '{print $2}' | sort -u > answers.txt
+            { grep -E 'Flags \[S\]' cap.txt | grep -oE '> [0-9.]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1 \2/' | sort -u | while read -r ip port; do grep -qxF "$ip" answers.txt || echo "$ip:$port"; done > direct.txt
+            names=$({ grep -v '^registry\.npmjs\.org
+            conns=$(head -60 direct.txt | jq -R . | jq -sc .)
+            # The capture is believed only when it saw the install's own lookup of the registry.
+            if grep -q '^registry\.npmjs\.org$' names.txt; then
+              printf '%s' "$line" | stamp | jq -cj --argjson names "$names" --argjson conns "$conns" '. + {network: {names: $names, conns: $conns}}' > report.json
+            else
+              printf '%s' "$line" | stamp > report.json
+            fi
+            status=$(send)
+            echo "feed: $status $(cut -c1-160 reply.txt 2>/dev/null)"
+            if [ "$status" != 201 ] && [ "$status" != 200 ]; then
+              # A report the feed will not take must not leave the package waiting for ever.
+              blank "$name" "$version" "the report was not accepted by the feed" | stamp > report.json
+              echo "feed (fallback): $(send)"
+            fi
+            jq -c '{package, version, installed: .install.ok, started: .start.ok, tools: (.tools | length), names: .network.names, conns: .network.conns}' report.json >> summary.jsonl
             cat report.json >> reports.jsonl; echo >> reports.jsonl
+          done < list.txt
+          [ -f summary.jsonl ] && cat summary.jsonl || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: reports-${{ matrix.shard }}
+          path: |
+            summary.jsonl
+            reports.jsonl
+          if-no-files-found: ignore
+ names.txt || true; } | head -59 | { cat; grep '^registry\.npmjs\.org
+            conns=$(head -60 direct.txt | jq -R . | jq -sc .)
+            # The capture is believed only when it saw the install's own lookup of the registry.
+            if grep -q '^registry\.npmjs\.org$' names.txt; then
+              printf '%s' "$line" | stamp --argjson names "$names" --argjson conns "$conns" | jq -cj '. + {network: {names: $names, conns: $conns}}' --argjson names "$names" --argjson conns "$conns" > report.json
+            else
+              printf '%s' "$line" | stamp > report.json
+            fi
+            status=$(send)
+            echo "feed: $status $(cut -c1-160 reply.txt 2>/dev/null)"
+            if [ "$status" != 201 ] && [ "$status" != 200 ]; then
+              # A report the feed will not take must not leave the package waiting for ever.
+              blank "$name" "$version" "the report was not accepted by the feed" | stamp > report.json
+              echo "feed (fallback): $(send)"
+            fi
+            jq -c '{package, version, installed: .install.ok, started: .start.ok, tools: (.tools | length), names: .network.names, conns: .network.conns}' report.json >> summary.jsonl
+            cat report.json >> reports.jsonl; echo >> reports.jsonl
+          done < list.txt
+          [ -f summary.jsonl ] && cat summary.jsonl || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: reports-${{ matrix.shard }}
+          path: |
+            summary.jsonl
+            reports.jsonl
+          if-no-files-found: ignore
+ names.txt || true; } | jq -R . | jq -sc .)
+            conns=$(head -60 direct.txt | jq -R . | jq -sc .)
+            # The capture is believed only when it saw the install's own lookup of the registry.
+            if grep -q '^registry\.npmjs\.org$' names.txt; then
+              printf '%s' "$line" | stamp --argjson names "$names" --argjson conns "$conns" | jq -cj '. + {network: {names: $names, conns: $conns}}' --argjson names "$names" --argjson conns "$conns" > report.json
+            else
+              printf '%s' "$line" | stamp > report.json
+            fi
+            status=$(send)
+            echo "feed: $status $(cut -c1-160 reply.txt 2>/dev/null)"
+            if [ "$status" != 201 ] && [ "$status" != 200 ]; then
+              # A report the feed will not take must not leave the package waiting for ever.
+              blank "$name" "$version" "the report was not accepted by the feed" | stamp > report.json
+              echo "feed (fallback): $(send)"
+            fi
+            jq -c '{package, version, installed: .install.ok, started: .start.ok, tools: (.tools | length), names: .network.names, conns: .network.conns}' report.json >> summary.jsonl
             cat report.json >> reports.jsonl; echo >> reports.jsonl
           done < list.txt
           [ -f summary.jsonl ] && cat summary.jsonl || true

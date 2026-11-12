@@ -42,15 +42,17 @@ export type Report = {
   toolsHash: string;
   /** Files the server created or changed while it ran, as paths inside its sandbox. */
   wrote: string[];
-  /** Added outside the sandbox by whoever hosted the run: names looked up and connections opened while the
-   * package was installed and started. Absent when the host did not record them. */
+  /** Added outside the sandbox by whoever hosted the run, while the package was installed and started: every
+   * name looked up, and connections to addresses that no lookup returned (an address written into the code).
+   * Absent when the host could not record them. */
   network?: { names: string[]; conns: string[] };
   /** Added by the host: where the run can be looked at. */
   host?: { commit: string; run: string };
 };
 
 const NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
-const VERSION = /^\d+\.\d+\.\d+(?:-[\w.]+)?$/;
+const VERSION = /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/;
+const TIME = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/;
 export const validPackage = (name: unknown): name is string => typeof name === "string" && name.length <= 214 && NAME.test(name);
 export const validVersion = (version: unknown): version is string => typeof version === "string" && version.length <= 64 && VERSION.test(version);
 
@@ -68,7 +70,7 @@ export function reportProblems(r: unknown): string[] {
   if (r.v !== 1) bad.push("v must be 1");
   if (!validPackage(r.package)) bad.push("package is not an npm package name");
   if (!validVersion(r.version)) bad.push("version is not an exact version");
-  if (!str(r.ranAt, 30) || !Number.isFinite(Date.parse(String(r.ranAt)))) bad.push("ranAt is not a time");
+  if (!str(r.ranAt, 30) || !TIME.test(String(r.ranAt)) || !Number.isFinite(Date.parse(String(r.ranAt)))) bad.push("ranAt is not a time");
   const i = r.install;
   if (!obj(i) || typeof i.ok !== "boolean" || !only(i, ["ok", "error", "integrity", "bin", "bins", "deps", "scripts", "license", "engines", "repository"])) bad.push("install is malformed");
   else if (!optional(i.error, (v) => str(v, 400)) || !optional(i.integrity, (v) => str(v, 200)) || !optional(i.bin, (v) => str(v, 214)) || !optional(i.bins, (v) => strs(v, 40, 214)) || !optional(i.deps, (v) => Number.isInteger(v) && (v as number) >= 0) || !optional(i.scripts, (v) => strs(v, 30, 214)) || !optional(i.license, (v) => str(v, 100)) || !optional(i.engines, (v) => str(v, 100)) || !optional(i.repository, (v) => str(v, 300))) bad.push("install has a malformed field");

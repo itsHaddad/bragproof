@@ -103,5 +103,10 @@ export async function makeReport(pkg: string, version: string, bin?: string): Pr
   } finally {
     await started.stop();
   }
+  // A server with hundreds of long descriptions must still fit in what a feed accepts.
+  for (const limit of [1200, 300, 0]) {
+    if (JSON.stringify(report).length <= 250_000) break;
+    for (const t of report.tools) t.description = t.description.slice(0, limit);
+  }
   return report;
 }

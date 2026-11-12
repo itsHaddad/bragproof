@@ -129,7 +129,7 @@ async function main() {
   }
 
   if (cmd === "report") {
-    const m = need(rest[0], "report needs <package>@<version>").match(/^((?:@[^@/]+\/)?[^@/]+)@(\d+\.\d+\.\d+(?:-[\w.]+)?)$/);
+    const m = need(rest[0], "report needs <package>@<version>").match(/^((?:@[^@/]+\/)?[^@/]+)@(\d+\.\d+\.\d+(?:-[\w.-]+)?)$/);
     if (!m) return need(undefined, "report needs <package>@<exact version>");
     // One marked line, so the report can be picked out of everything else a run prints.
     console.log("BRAGPROOF-REPORT:" + JSON.stringify(await makeReport(m[1]!, m[2]!, flag(flags, "bin"))));

@@ -42,7 +42,7 @@ button,.button{font:inherit;font-weight:650;padding:10px 16px;border-radius:10px
 .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}.fact{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.fact b{display:block;font-size:1.35rem;line-height:1.2}.fact span{color:var(--muted);font-size:.86rem}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media (max-width:640px){.two{grid-template-columns:1fr}h1{font-size:1.4rem}h1.mono{font-size:1.2rem}nav{margin-left:0;width:100%}.chip{padding:11px 14px}.brand{padding-bottom:0}}
 table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{text-align:left;padding:8px 10px 8px 0;border-top:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:600;border-top:0}.scroll{overflow-x:auto}
-details{border:1px solid var(--line);border-radius:10px;padding:0 14px;background:var(--card)}details+details{margin-top:8px}summary{cursor:pointer;font-weight:650;padding:12px 0}details[open]{padding-bottom:12px}
+details{border:1px solid var(--line);border-radius:10px;padding:0 14px;background:var(--card)}details+details{margin-top:8px}summary{cursor:pointer;font-weight:650;padding:12px 0}details[open]{padding-bottom:12px}details.all>details:first-of-type{margin-top:4px}
 footer{border-top:1px solid var(--line);color:var(--muted);font-size:.88rem;padding:20px 0 40px}.note{border-left:3px solid var(--line);padding-left:12px;color:var(--muted)}
 ol.steps{padding-left:20px;margin:0}ol.steps li{margin-bottom:10px}
 `;
@@ -64,4 +64,4 @@ ${opts.alternate ? `<link rel="alternate" type="application/json" href="${esc(op
 }
 
 export const html = (body: string, status = 200) =>
-  new Response(body, { status, headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "cache-control": status === 200 ? "public, max-age=60" : "no-store" } });
+  new Response(body, { status, headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "cache-control": status === 200 ? "public, max-age=60" : "no-store" } });

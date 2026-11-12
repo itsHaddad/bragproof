@@ -43,11 +43,11 @@ export function feedHandler(feed: FeedService, opts: { publicOrigin?: string } =
       // The one form on the site posts here; it must come from the site's own pages.
       if (path === "/request") {
         const from = req.headers.get("origin");
-        if (from && from !== origin) return json({ error: "not from this site" }, 403);
+        if ((from && from !== origin) || req.headers.get("sec-fetch-site") === "cross-site") return json({ error: "not from this site" }, 403);
         const form = await req.formData().catch(() => null);
         const name = String(form?.get("package") ?? "").trim().toLowerCase().slice(0, 214);
         const out = await feed.askReport(name, clientAddress);
-        return out.ok ? new Response(null, { status: 303, headers: { location: reportHref(out.package) } }) : html(messagePage("That did not work", out.reason, origin), 422);
+        return out.ok ? new Response(null, { status: 303, headers: { location: reportHref(out.package) } }) : html(messagePage("That did not work", out.reason, origin), out.reason.startsWith("too many") ? 429 : 422);
       }
       if (!(req.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return json({ error: "send application/json" }, 415);
     }
@@ -89,14 +89,14 @@ export function feedHandler(feed: FeedService, opts: { publicOrigin?: string } =
       const d = await feed.reports.get(name);
       return d ? json({ report: d.report, summary: d.summary, history: d.history, page: origin + reportHref(name) }, 200, cached) : json({ error: "no report on this package", ask: "POST " + origin + '/v1/requests {"package":"name"}' }, 404, open);
     }
-    if (path === "/v1/queue") return json({ packages: await feed.reports.queue(numberOf(p.get("limit"), 3)) }, 200, { "cache-control": "no-store" });
+    if (path === "/v1/queue") return json({ packages: await feed.reports.queue(numberOf(p.get("limit"), 3), p.get("take") === "1" ? (req.headers.get("authorization") ?? "").replace(/^Bearer /i, "") : undefined) }, 200, { "cache-control": "no-store" });
     if (path === "/v1/state") return json(await feed.reports.state(), 200, cached);
     if (path === "/state") return html(statePage(await feed.reports.state(), origin));
     if (path.startsWith("/r/")) {
       const name = decoded(path.slice(3));
       const d = await feed.reports.get(name);
       if (d) return html(reportPage(d, await feed.claims({ package: name, limit: 20 }), origin));
-      return validPackage(name) ? html(noReportPage(name, (await feed.reports.queue(100)).includes(name), origin), 404) : html(notFound(origin), 404);
+      return validPackage(name) ? html(noReportPage(name, await feed.reports.isQueued(name), origin), 404) : html(notFound(origin), 404);
     }
     const badge = path.match(/^\/badge\/(.+)\.svg$/);
     if (badge) return new Response(badgeSvg(await feed.reports.get(decoded(badge[1]!))), { headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=1800", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
