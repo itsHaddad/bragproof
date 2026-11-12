@@ -8,19 +8,21 @@ Every report is signed by the public job that made it, so nobody has to take thi
 
 **Live: [bragproof.smaverk.com](https://bragproof.smaverk.com)** · [the numbers](https://bragproof.smaverk.com/state) · [get your server listed](https://bragproof.smaverk.com/publish)
 
-## What 1,348 servers did when started
+## What 1,346 servers did when started
 
 Measured on 12 November 2026 from the 1,500 most-downloaded npm packages that present themselves as MCP
-servers. 155 had no start command (libraries and kits, not servers) and are left out.
+servers. 157 had no start command (libraries and kits, not servers) and are left out.
 The runner is Linux x64 with Node 24.
 
 | | |
 |---|---|
-| Start with no setup and list their tools | **65%** (878 of 1,348) |
+| Start with no setup and list their tools | **65%** (877 of 1,346) |
 | Need setup first (a key, an argument) | 269 |
-| Did not start, and did not say what they need | 131 |
+| Did not start, and did not say what they need | 132 |
+| Have a read-only tool that takes no input, which the runner called | 575 |
+| ...of which returned a result with no setup | 380 (66%) |
 | Need another program, a build step or a different machine | 44 |
-| Contact something other than npm just from being installed and started | 213, of which 136 are one publisher's packages calling the same gateway |
+| Contact something other than npm just from being installed and started | 214, of which 136 are one publisher's packages calling the same gateway |
 | Have tool descriptions with commands in capitals or other unusual wording | 169 |
 | Have tool descriptions about the user, other tools or private files | 9 |
 
