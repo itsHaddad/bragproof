@@ -8,7 +8,7 @@ export const startedOf = (s: State) => s.outcomes.find((o) => o.outcome === "sta
 
 /** The form a maker (or anyone) uses to get a package reported. Plain HTML, no script. */
 export const askForm = (value = "", label = "Run a report") => `<form class="search" method="post" action="/request">
-<input type="text" name="package" value="${esc(value)}" placeholder="npm package name, e.g. @you/your-mcp-server" aria-label="npm package name" autocapitalize="off" autocomplete="off" spellcheck="false" required>
+<input type="text" name="package" value="${esc(value)}" placeholder="@you/your-mcp-server" aria-label="npm package name" autocapitalize="off" autocomplete="off" spellcheck="false" required>
 <button type="submit">${label}</button>
 </form>`;
 
@@ -25,14 +25,14 @@ export function homePage(o: { origin: string; rows: ReportRow[]; state: State; q
 <div class="fact"><b>${o.state.total}</b><span>servers reported</span></div>
 <div class="fact"><b>${pct(started, o.state.total)}</b><span>start with no setup</span></div>
 <div class="fact"><b>${o.state.contacting}</b><span>contact something just by starting</span></div>
-<div class="fact"><b>${o.state.serious}</b><span>have wording worth reading</span></div>
+<div class="fact"><b>${o.state.serious}</b><span>have tool text about the user, other tools or private files</span></div>
 </div>
-<p class="small"><a href="/state">The state of MCP servers, in numbers</a> · <a href="#listed">Made one? Get it listed</a></p>`;
+<p><a class="button quiet" href="/publish">Made one? Get it listed</a> <a class="small" style="margin-left:8px" href="/state">The numbers in full</a></p>`;
   const chips = [["", "All"], ["started", "Start with no setup"], ["needs-setup", "Need setup"], ["contacts", "Contact something"]] as const;
-  const heading = filtered ? `${o.rows.length >= 60 ? "First 60 reports" : plural(o.rows.length, "report")}${o.q ? ` matching "${esc(o.q)}"` : ""} <a class="small" href="/">clear</a>` : "Latest reports";
+  const heading = filtered ? `${o.rows.length >= 60 ? "First 60 reports" : plural(o.rows.length, "report")}${o.q ? ` matching "${esc(o.q)}"` : ""} <a class="small" href="/">clear</a>` : "Latest runs";
   const body = `${intro}
 <form class="search" method="get" action="/#results" role="search">
-<input type="search" name="q" value="${esc(o.q)}" placeholder="a package name, or what you need: sqlite, time zone, diagrams" aria-label="Search reports">
+<input type="search" name="q" value="${esc(o.q)}" placeholder="sqlite, time zone, or a package name" aria-label="Search reports">
 <button type="submit">Search</button>
 </form>
 <div class="chips" aria-label="Filter">${chips.map(([v, label]) => `<a class="chip" href="/?${o.q ? "q=" + encodeURIComponent(o.q) + "&" : ""}show=${v}#results"${o.filter === v ? ' aria-current="true"' : ""}>${label}</a>`).join("")}</div>
@@ -43,6 +43,11 @@ ${filtered ? "" : `
 <h2 id="listed">Made one? Get it listed.</h2>
 <p>Type your package's name. No post to write, no account, no pull request. In a few minutes it has a report, a page agents can find, and a badge for your README that says it starts.</p>
 ${askForm()}
-<p class="small muted">Agents: <code>POST ${esc(o.origin)}/v1/requests</code> with <code>{"package":"name"}</code>, or the <code>request_report</code> tool at <code>${esc(o.origin)}/mcp</code>. <a href="/publish">More</a></p>`}`;
+<p class="small muted">Agents: <code>POST ${esc(o.origin)}/v1/requests</code> with <code>{"package":"name"}</code>, or the <code>request_report</code> tool at <code>${esc(o.origin)}/mcp</code>. <a href="/publish">More</a></p>
+
+<h2>Give your agent the habit</h2>
+<p>Add Bragproof as a tool and your agent can look a server up before it runs one, and find servers that start with no setup.</p>
+<pre class="cmd">claude mcp add --transport http bragproof ${esc(o.origin)}/mcp</pre>
+<p class="small muted">Any client that speaks MCP over HTTP works: the address is <code>${esc(o.origin)}/mcp</code>, no key. Tools: <code>check_package</code>, <code>find_servers</code>, <code>request_report</code>.</p>`}`;
   return page({ title: "Bragproof: know what an MCP server does before you run it", origin: o.origin, path: "/", body, alternate: "/v1/reports" });
 }

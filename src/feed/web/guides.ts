@@ -20,12 +20,12 @@ ${askForm()}
 <ol class="steps">
 <li><b>A public job picks it up</b>, usually within 15 minutes. It installs the newest version from npm on a throwaway machine and starts it with no arguments, no environment and no input.</li>
 <li><b>It records what it saw</b>: whether your server answered, what it printed if it did not, every tool and description it listed, the addresses it looked up, and the files it wrote.</li>
-<li><b>The report goes up</b> at <code>${esc(origin)}/r/your-package</code>, signed by GitHub so nobody, this site included, can have edited it.</li>
+<li><b>The report goes up</b> at <code>${esc(origin)}/r/your-package</code>, signed by GitHub, so any later edit, by this site too, would show.</li>
 </ol>
 
 <h2>Getting a good report</h2>
 <ul>
-<li><b>Answer <code>tools/list</code> without a key.</b> Ask for the key when a tool is called, not at start. Then agents can see what you offer before anyone signs up for anything. About half of the servers on npm do not start without setup.</li>
+<li><b>Answer <code>tools/list</code> without a key.</b> Ask for the key when a tool is called, not at start. Then agents can see what you offer before anyone signs up for anything. Many servers on npm do not start without setup; <a href="/state">the numbers</a>.</li>
 <li><b>Say what is missing.</b> If you must have a setting, print its name to the error stream before you exit. The report shows it to whoever is about to use you.</li>
 <li><b>Keep start quiet.</b> Contacting a server just from being started shows up in the report.</li>
 <li><b>Write tool descriptions for a stranger's agent.</b> Describe what the tool does. Text that addresses the user, other tools or private files is quoted on your report.</li>

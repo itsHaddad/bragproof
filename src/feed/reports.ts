@@ -10,7 +10,7 @@ import type { Executor } from "./store.ts";
 
 export type ReportRow = { package: string; version: string; ranAt: string; outcome: Outcome; tools: number; contacts: number; flags: number; serious: number; toolsHash: string };
 export type ReportDetail = { report: Report; summary: Summary; token: string; history: ReportRow[] };
-export type State = { total: number; outcomes: { outcome: Outcome; n: number }[]; contacting: number; flagged: number; serious: number; hosts: { name: string; n: number }[]; needs: { name: string; n: number }[] };
+export type State = { total: number; /** Packages with no start command: not servers, so not counted. */ leftOut: number; outcomes: { outcome: Outcome; n: number }[]; contacting: number; flagged: number; serious: number; hosts: { name: string; n: number }[]; needs: { name: string; n: number }[] };
 export type ReportQuery = { q?: string; outcome?: string; contacts?: boolean; limit?: number };
 
 const SCHEMA = [
@@ -122,17 +122,25 @@ export class ReportBook {
       args.push(query.outcome);
     }
     if (query.contacts) where.push("contacts > 0");
+    // Packages that are not servers stay findable by name, but are not shown among the latest.
+    if (!query.q && !query.outcome) where.push("outcome <> 'no-start-command'");
     const order = query.q ? "CASE outcome WHEN 'started' THEN 0 ELSE 1 END, instr(package, ?) = 0, id DESC" : "id DESC";
     if (query.q) args.push(query.q.toLowerCase().split(/\s+/).filter(Boolean)[0] ?? "");
     return (await this.all(`SELECT ${COLUMNS} FROM reports WHERE ${where.join(" AND ")} ORDER BY ${order} LIMIT ${clamp(query.limit, 30, 200)}`, args)).map(toRow);
   }
 
-  /** The numbers for the whole collection. */
+  /** Every reported package name, for a sitemap. */
+  async names(): Promise<string[]> {
+    return (await this.all("SELECT package FROM reports WHERE latest = 1 AND outcome NOT IN ('not-found', 'no-start-command') ORDER BY id DESC LIMIT 5000")).map((r) => String(r.package));
+  }
+
+  /** The numbers for the whole collection. Packages that are not servers (no start command) are left out. */
   async state(): Promise<State> {
-    const outcomes = (await this.all("SELECT outcome, count(*) AS n FROM reports WHERE latest = 1 AND outcome <> 'not-found' GROUP BY outcome ORDER BY n DESC")).map((r) => ({ outcome: r.outcome as Outcome, n: Number(r.n) }));
-    const c = (await this.all("SELECT count(*) AS total, sum(contacts > 0) AS contacting, sum(flags > 0) AS flagged, sum(serious > 0) AS serious FROM reports WHERE latest = 1 AND outcome <> 'not-found'"))[0] ?? {};
+    const outcomes = (await this.all("SELECT outcome, count(*) AS n FROM reports WHERE latest = 1 AND outcome NOT IN ('not-found', 'no-start-command') GROUP BY outcome ORDER BY n DESC")).map((r) => ({ outcome: r.outcome as Outcome, n: Number(r.n) }));
+    const c = (await this.all("SELECT count(*) AS total, sum(contacts > 0) AS contacting, sum(flags > 0) AS flagged, sum(serious > 0) AS serious FROM reports WHERE latest = 1 AND outcome NOT IN ('not-found', 'no-start-command')"))[0] ?? {};
+    const leftOut = Number((await this.all("SELECT count(*) AS n FROM reports WHERE latest = 1 AND outcome = 'no-start-command'"))[0]?.n ?? 0);
     const top = async (column: string) => (await this.all(`SELECT j.value AS name, count(*) AS n FROM reports r, json_each(r.${column}) j WHERE r.latest = 1 GROUP BY j.value ORDER BY n DESC, name ASC LIMIT 15`)).map((r) => ({ name: String(r.name), n: Number(r.n) }));
-    return { total: Number(c.total ?? 0), outcomes, contacting: Number(c.contacting ?? 0), flagged: Number(c.flagged ?? 0), serious: Number(c.serious ?? 0), hosts: await top("contact_names"), needs: await top("need_names") };
+    return { total: Number(c.total ?? 0), leftOut, outcomes, contacting: Number(c.contacting ?? 0), flagged: Number(c.flagged ?? 0), serious: Number(c.serious ?? 0), hosts: await top("contact_names"), needs: await top("need_names") };
   }
 
   /** Asks for a report on a package. Reported already: says so. Otherwise it joins the queue the report

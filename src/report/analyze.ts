@@ -65,6 +65,20 @@ export function outcomeOf(r: Report): Outcome {
  * looking any name up. Recorded outside its sandbox. */
 export const contactsOf = (r: Report): string[] => [...(r.network?.names ?? []).filter((n) => n !== "registry.npmjs.org"), ...(r.network?.conns ?? [])];
 
+/** What a contacted host usually is, for the few kinds a reader should not have to recognise. */
+export function hostNote(host: string): string {
+  if (/^169\.254\.169\.254|^metadata\.google\.internal/.test(host)) return "the cloud metadata address, where a cloud machine's credentials are read from";
+  if (/posthog|sentry\.io|beacon|analytics|telemetry|segment\.(io|com)|mixpanel|amplitude|datadoghq|bugsnag|rollbar|applicationinsights/i.test(host)) return "usually analytics or error reporting";
+  if (/^release-assets\.githubusercontent\.com$|^objects\.githubusercontent\.com$/.test(host)) return "a release file downloaded from GitHub";
+  return "";
+}
+
+/** The first thing it said that reads like a reason, when it did not start. */
+export function saidFirst(r: Report): string {
+  const lines = said(r).split("\n").map((l) => l.trim()).filter((l) => l && !/^at |^node:|^\^|^Node\.js v|^npm (error|warn) (code|A complete log)/.test(l));
+  return (lines.find((l) => /error|required|missing|must|cannot|failed|not |invalid|usage/i.test(l)) ?? lines[0] ?? "").slice(0, 200);
+}
+
 export type Flag = { kind: "orders" | "about-others" | "private-files" | "hidden-characters" | "very-long"; tool: string; quote: string };
 
 export const flagLabel: Record<Flag["kind"], string> = {

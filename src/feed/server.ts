@@ -91,6 +91,11 @@ export function feedHandler(feed: FeedService, opts: { publicOrigin?: string } =
     }
     if (path === "/v1/queue") return json({ packages: await feed.reports.queue(numberOf(p.get("limit"), 3), p.get("take") === "1" ? (req.headers.get("authorization") ?? "").replace(/^Bearer /i, "") : undefined) }, 200, { "cache-control": "no-store" });
     if (path === "/v1/state") return json(await feed.reports.state(), 200, cached);
+    if (path === "/sitemap.xml") {
+      const urls = ["/", "/state", "/publish", "/about", "/claims", ...(await feed.reports.names()).map(reportHref)];
+      return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${origin}${u}</loc></url>`).join("\n")}\n</urlset>\n`, { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=3600" } });
+    }
+    if (path === "/robots.txt") return new Response(`User-agent: *\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
     if (path === "/state") return html(statePage(await feed.reports.state(), origin));
     if (path.startsWith("/r/")) {
       const name = decoded(path.slice(3));
