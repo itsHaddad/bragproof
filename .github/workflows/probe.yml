@@ -20,12 +20,22 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           image=$(grep -o 'ghcr.io/itshaddad/bragproof-runner@sha256:[0-9a-f]*' .github/workflows/check.yml | head -1)
+          command -v tcpdump >/dev/null || sudo apt-get install -y -qq tcpdump >/dev/null
           i=0
           jq -r '.[]' tools/candidates.json | while read -r pkg; do
             i=$((i+1))
             [ $((i % 8)) = "$SHARD" ] || continue
             echo "== $pkg"
-            timeout 150 docker run --rm --security-opt no-new-privileges --memory 2g --entrypoint bun "$image" src/cli/main.ts probe "$pkg" 2>/dev/null | grep '^BRAGPROOF-PROBE:' | cut -d: -f2- >> probes.jsonl || echo "{\"package\":\"$pkg\",\"ok\":false,\"error\":\"timed out or crashed\"}" >> probes.jsonl
+            # Everything the container sends crosses the docker0 bridge: name lookups and new connections are
+            # recorded there, outside the container, where the package cannot hide them.
+            sudo tcpdump -i docker0 -nn -l -p 'udp dst port 53 or (tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0)' > cap.txt 2>/dev/null &
+            sleep 2
+            line=$(timeout 150 docker run --rm --security-opt no-new-privileges --memory 2g --entrypoint bun "$image" src/cli/main.ts probe "$pkg" 2>/dev/null | grep '^BRAGPROOF-PROBE:' | cut -d: -f2- || true)
+            [ -n "$line" ] || line="{\"package\":\"$pkg\",\"ok\":false,\"error\":\"timed out or crashed\"}"
+            sleep 1; sudo pkill -x tcpdump || true; sleep 1
+            names=$({ grep -oE ' (A|AAAA)\? [^ ]+' cap.txt || true; } | awk '{print $2}' | sed 's/\.$//' | sort -u | jq -R . | jq -sc .)
+            conns=$({ grep -E 'Flags \[S\]' cap.txt | grep -oE '> [0-9.]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1:\2/' | sort -u | jq -R . | jq -sc .)
+            printf '%s' "$line" | jq -c --argjson names "$names" --argjson conns "$conns" '. + {names: $names, conns: $conns}' >> probes.jsonl
           done
           wc -l probes.jsonl
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
