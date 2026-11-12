@@ -26,7 +26,7 @@ export function feedHandler(feed: FeedService, opts: { publicOrigin?: string } =
       return json(
         feed.search({
           q: p.get("q") ?? undefined,
-          level: level === "any" || level === "attested" || level === "self-reported" ? (level as Level | "any") : undefined,
+          level: level === "any" || level === "attested" || level === "witnessed" || level === "self-reported" ? (level as Level | "any") : undefined,
           pass: p.get("pass") === "any" ? "any" : true,
           after: after !== null && /^\d{1,12}$/.test(after) ? Number(after) : undefined,
           limit: limit !== null && /^\d{1,3}$/.test(limit) ? Number(limit) : undefined,

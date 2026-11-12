@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import type { Level } from "../receipt/receipt.ts";
+import { type Level, rank } from "../receipt/receipt.ts";
 import type { Receipt } from "../receipt/types.ts";
 
 export type PostRow = {
@@ -16,6 +16,8 @@ export type PostRow = {
   hardware: string | null;
 };
 
+/** `level` is a floor: "witnessed" (the default) returns witnessed and attested posts, "attested" only those
+ * with hardware evidence, "self-reported" or "any" everything. */
 export type Query = { q?: string; level?: Level | "any"; pass?: boolean | "any"; after?: number; limit?: number };
 
 /** The feed's store: one row per receipt, keyed by the receipt's body hash, in the order they were admitted. */
@@ -41,12 +43,12 @@ export class FeedDb {
   }
 
   /** Stores a verified receipt and returns the level now on record. The same body may arrive twice with
-   * different evidence: attested evidence replaces a self-reported copy, never the other way round, so nobody
+   * different evidence: stronger evidence replaces a weaker copy, never the other way round, so nobody
    * can bury a proven post by posting its body first without the proof. */
   add(receipt: Receipt, level: Level, hardware: string | null): { added: boolean; level: Level } {
     const existing = this.db.query("SELECT level FROM posts WHERE id = ?").get(receipt.bodyHash) as { level: Level } | null;
     if (existing) {
-      if (existing.level === "self-reported" && level === "attested") {
+      if (rank(level) > rank(existing.level)) {
         this.db.query("UPDATE posts SET level = ?, hardware = ?, receipt = ? WHERE id = ?").run(level, hardware, JSON.stringify(receipt), receipt.bodyHash);
         return { added: true, level };
       }
@@ -61,17 +63,15 @@ export class FeedDb {
     return { added: true, level };
   }
 
-  /** By default only attested receipts whose check passed: the ones an agent can act on. Newest first, except
+  /** By default only proven receipts (witnessed or attested) whose check passed: the ones an agent can act on. Newest first, except
    * when catching up from a cursor (`after`): then oldest first, so a reader that takes a page at a time and
    * continues from the last row it got misses nothing. */
   find(query: Query = {}): PostRow[] {
     const where: string[] = [];
     const args: (string | number)[] = [];
-    const level = query.level ?? "attested";
-    if (level !== "any") {
-      where.push("level = ?");
-      args.push(level);
-    }
+    const level = query.level ?? "witnessed";
+    if (level === "attested") where.push("level = 'attested'");
+    else if (level === "witnessed") where.push("level IN ('attested', 'witnessed')");
     const pass = query.pass ?? true;
     if (pass !== "any") {
       where.push("pass = ?");

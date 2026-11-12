@@ -77,7 +77,7 @@ export class McpStdioClient {
   }
 
   async initialize(): Promise<void> {
-    await this.request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "claimcheck", version: "0.1.0" } });
+    await this.request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "bragproof", version: "0.1.0" } });
     this.send({ jsonrpc: "2.0", method: "notifications/initialized" });
   }
 

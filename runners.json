@@ -1,11 +1,8 @@
 {
-  "about": "Container images of the claimcheck runner that verifiers accept by default. Each was built by this repository's 'runner image' workflow from the named commit; the digest is what the attestation token reports. A runner found to be unsound is removed from this list, and receipts made with it stop verifying.",
-  "runners": [
-    {
-      "digest": "sha256:b6e04cadae55ff29d00223ea82319c5cab72cb5c3a38cf9ec98529b564d16ba1",
-      "image": "ghcr.io/itshaddad/claimcheck-runner",
-      "commit": "fb5112fd27333135cfa1b422d3afcbe7098ecb41",
-      "note": "First runner with the package jail. Earlier images are not accepted: the package under test could reach the attestation socket."
-    }
-  ]
+  "about": "What verifiers accept by default. 'runners': container images of the bragproof runner, by digest, for hardware-attested runs. 'github': the check workflow and the commits of it that are accepted for runs witnessed by GitHub; each of those commits pins a runner image by digest. Anything found unsound is removed, and receipts made with it stop verifying.",
+  "runners": [],
+  "github": {
+    "workflow": "itsHaddad/bragproof/.github/workflows/check.yml",
+    "commits": []
+  }
 }

@@ -15,10 +15,10 @@ const run = (cmd: string, args: string[], cwd: string) =>
 /** Installs exactly `package@version` into a fresh folder, without running install scripts, and reports the
  * tarball's integrity and the hash of the lockfile (which pins every dependency that will be loaded). */
 export async function installSubject(subject: Subject, into?: string): Promise<Installed> {
-  const dir = into ?? (await mkdtemp(join(tmpdir(), "claimcheck-")));
+  const dir = into ?? (await mkdtemp(join(tmpdir(), "bragproof-")));
   const remove = () => (into ? Promise.resolve() : rm(dir, { recursive: true, force: true }));
   try {
-    await Bun.write(join(dir, "package.json"), JSON.stringify({ name: "claimcheck-run", private: true }));
+    await Bun.write(join(dir, "package.json"), JSON.stringify({ name: "bragproof-run", private: true }));
     await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--save-exact", `${subject.package}@${subject.version}`], dir);
     const lockText = await readFile(join(dir, "package-lock.json"), "utf8");
     const lock = JSON.parse(lockText);

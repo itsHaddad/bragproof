@@ -7,7 +7,7 @@ import { issuerKeys, type JwksSource, verifyJwt } from "./jwt.ts";
  * What this trusts: the chip vendor, Google as host and verifier, and that nobody had physical access. */
 
 export const ISSUER = "https://confidentialcomputing.googleapis.com";
-export const AUDIENCE = "claimcheck";
+export const AUDIENCE = "bragproof";
 export const SOCKET = "/run/container_launcher/teeserver.sock";
 
 export const insideConfidentialSpace = () => existsSync(SOCKET);
@@ -32,6 +32,10 @@ export type Policy = {
   hardware: string[];
   /** Largest gap allowed between the end of the run and the token's issue time. */
   maxSkewSeconds: number;
+  /** The check workflow a GitHub Actions token must name ("owner/repo/.github/workflows/file.yml"). */
+  githubWorkflow: string;
+  /** Commits of that workflow file the verifier accepts. */
+  githubCommits: string[];
 };
 
 export const DEFAULT_HARDWARE = ["GCP_INTEL_TDX", "GCP_AMD_SEV_SNP"];

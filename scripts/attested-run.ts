@@ -30,7 +30,7 @@ const feed = opt("feed");
 const spec = await Bun.file(specPath).text();
 const { token, project } = await gcpToken();
 const base = `https://compute.googleapis.com/compute/v1/projects/${project}/zones/${zone}`;
-const name = "claimcheck-" + Date.now().toString(36);
+const name = "bragproof-" + Date.now().toString(36);
 const tdx = machine.startsWith("c3");
 
 const metadata = [
@@ -55,7 +55,7 @@ const created = await gcp(token, `${base}/instances`, {
     // can ask the metadata server for this account's token.
     serviceAccounts: [{ email: serviceAccount, scopes: ["https://www.googleapis.com/auth/cloud-platform"] }],
     metadata: { items: metadata },
-    labels: { purpose: "claimcheck" },
+    labels: { purpose: "bragproof" },
   },
 });
 if (created.status >= 300) {
@@ -81,7 +81,7 @@ try {
     log += out.body.contents ?? "";
     seen = Number(out.body.next ?? seen);
     const complete = log.slice(0, log.lastIndexOf("\n") + 1);
-    for (const m of complete.matchAll(/CLAIMCHECK-RECEIPT:([A-Za-z0-9+/=]+)\s*$/gm)) {
+    for (const m of complete.matchAll(/BRAGPROOF-RECEIPT:([A-Za-z0-9+/=]+)\s*$/gm)) {
       if (tried.has(m[1]!)) continue;
       tried.add(m[1]!);
       try {

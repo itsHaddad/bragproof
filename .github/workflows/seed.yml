@@ -1,0 +1,49 @@
+name: seed
+# Runs every spec in specs/ through the check workflow and publishes the receipts to the public feed.
+on:
+  workflow_dispatch:
+    inputs:
+      feed:
+        description: Feed to publish to
+        required: false
+        default: ""
+      only:
+        description: Run only the spec with this file name (without .json)
+        required: false
+        default: ""
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    outputs:
+      specs: ${{ steps.list.outputs.specs }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        env:
+          ONLY: ${{ inputs.only }}
+        run: |
+          echo -n "specs=[" >> "$GITHUB_OUTPUT"
+          first=1
+          for f in specs/*.json; do
+            name=$(basename "$f" .json)
+            if [ -n "$ONLY" ] && [ "$name" != "$ONLY" ]; then continue; fi
+            [ $first = 1 ] || echo -n "," >> "$GITHUB_OUTPUT"
+            first=0
+            echo -n "{\"name\":\"$name\",\"spec_b64\":\"$(base64 -w0 "$f")\"}" >> "$GITHUB_OUTPUT"
+          done
+          echo "]" >> "$GITHUB_OUTPUT"
+  check:
+    needs: list
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        spec: ${{ fromJson(needs.list.outputs.specs) }}
+    name: ${{ matrix.spec.name }}
+    uses: itsHaddad/bragproof/.github/workflows/check.yml@check-v1
+    with:
+      spec_b64: ${{ matrix.spec.spec_b64 }}
+      feed: ${{ inputs.feed }}

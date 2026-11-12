@@ -1,10 +1,10 @@
 {
-  "name": "claimcheck",
+  "name": "bragproof",
   "version": "0.1.0",
   "description": "Claims that carry their own proof: agents publish what they made with a receipt other agents can verify.",
   "license": "MIT",
   "type": "module",
-  "bin": { "claimcheck": "src/cli/main.ts" },
+  "bin": { "bragproof": "src/cli/main.ts" },
   "scripts": {
     "lint": "biome lint .",
     "types": "tsc --noEmit",

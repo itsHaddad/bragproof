@@ -3,20 +3,21 @@ import { runCheck } from "../check/run.ts";
 import { FeedDb } from "../feed/db.ts";
 import { feedHandler } from "../feed/server.ts";
 import { FeedService } from "../feed/service.ts";
-import { defaultPolicy, makeReceipt, verifyReceipt } from "../receipt/receipt.ts";
+import { defaultPolicy, makeReceipt, rank, verifyReceipt } from "../receipt/receipt.ts";
 import type { CheckSpec } from "../receipt/types.ts";
 
-const HELP = `claimcheck: claims that carry their own proof
+const HELP = `bragproof: claims that carry their own proof
 
-  claimcheck run <spec.json> [--out receipt.json] [--post <feed-url>]
+  bragproof run <spec.json> [--out receipt.json] [--post <feed-url>]
       Install the subject, run the check, write a receipt. Inside a confidential VM the receipt is attested.
-  claimcheck verify <receipt.json | feed-url/v1/posts/id> [--runner sha256:...] [--accept-self-reported]
-      Check a receipt yourself. Exit 0: attested and the check passed. 1: the check failed. 2: do not believe
-      it. 3: intact but only self-reported (0 with --accept-self-reported).
-  claimcheck post <receipt.json> --feed <feed-url>
-  claimcheck search <words...> --feed <feed-url> [--any]
-  claimcheck new --feed <feed-url> [--cursor N]
-  claimcheck serve [--port 8799] [--db feed.db] [--origin https://...] [--self-reported-cap N]
+  bragproof verify <receipt.json | feed-url/v1/posts/id> [--runner sha256:...] [--accept-self-reported]
+      Check a receipt yourself. Exit 0: proven (witnessed or attested) and the check passed. 1: the check
+      failed. 2: do not believe it. 3: weaker proof than asked for. --require attested asks for hardware
+      evidence; --accept-self-reported accepts none at all.
+  bragproof post <receipt.json> --feed <feed-url>
+  bragproof search <words...> --feed <feed-url> [--any]
+  bragproof new --feed <feed-url> [--cursor N]
+  bragproof serve [--port 8799] [--db feed.db] [--origin https://...] [--self-reported-cap N]
       --self-reported-cap: how many unproven receipts to keep (default 1000; 0 for a public feed).
 
   In a runner container: CHECK_SPEC_B64 holds the spec, FEED_URL (optional) is where the receipt is posted.`;
@@ -69,7 +70,7 @@ async function main() {
     const out = flag(flags, "out");
     if (out) await Bun.write(out, JSON.stringify(receipt, null, 2) + "\n");
     // One marked line, so a receipt can be recovered from a machine's log when that is the only way out.
-    if (fromEnv && !rest[0]) console.log("CLAIMCHECK-RECEIPT:" + Buffer.from(JSON.stringify(receipt)).toString("base64"));
+    if (fromEnv && !rest[0]) console.log("BRAGPROOF-RECEIPT:" + Buffer.from(JSON.stringify(receipt)).toString("base64"));
     else if (!out) console.log(JSON.stringify(receipt, null, 2));
     const feed = flag(flags, "post") ?? process.env.FEED_URL;
     if (feed) {
@@ -77,6 +78,8 @@ async function main() {
       console.error(`posted to ${feed}: ${posted.status} ${JSON.stringify(posted.body)}`);
     }
     console.error(`check ${result.pass ? "passed" : "failed"}; evidence: ${receipt.evidence.kind}`);
+    // In a job that exists to produce a proven receipt, an unproven one is a failed job.
+    if (process.env.BRAGPROOF_REQUIRE_EVIDENCE && receipt.evidence.kind === "none") return 4;
     return result.pass ? 0 : 1;
   }
 
@@ -89,7 +92,8 @@ async function main() {
     console.log(JSON.stringify(verdict, null, 2));
     if (!verdict.ok) return 2;
     if (!verdict.pass) return 1;
-    return verdict.level === "attested" || flags["accept-self-reported"] ? 0 : 3;
+    const floor = flags["accept-self-reported"] ? 0 : flag(flags, "require") === "attested" ? 2 : 1;
+    return rank(verdict.level) >= floor ? 0 : 3;
   }
 
   if (cmd === "post") {
@@ -123,7 +127,7 @@ async function main() {
       fetch: (req, srv) => handle(req, srv.requestIP(req)?.address),
       error: () => Response.json({ error: "the feed could not answer this request" }, { status: 500 }),
     });
-    console.error(`claimcheck feed on http://localhost:${server.port}`);
+    console.error(`bragproof feed on http://localhost:${server.port}`);
     return await new Promise<number>(() => {});
   }
 

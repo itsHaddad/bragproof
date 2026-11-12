@@ -20,7 +20,27 @@ export function fakeAttestor(kid = "test-key") {
 }
 
 export const RUNNER = "sha256:" + "ab".repeat(32);
-export const policy: Policy = { runnerDigests: [RUNNER], hardware: ["GCP_INTEL_TDX", "GCP_AMD_SEV_SNP"], maxSkewSeconds: 600 };
+export const WORKFLOW = "example/bragproof/.github/workflows/check.yml";
+export const COMMIT = "c0".repeat(20);
+export const policy: Policy = { runnerDigests: [RUNNER], hardware: ["GCP_INTEL_TDX", "GCP_AMD_SEV_SNP"], maxSkewSeconds: 600, githubWorkflow: WORKFLOW, githubCommits: [COMMIT] };
+
+/** The claims a genuine GitHub Actions token carries for a run of `bodyHash`. */
+export const goodGithubClaims = (bodyHash: string, finishedAt: string): Record<string, any> => ({
+  iss: "https://token.actions.githubusercontent.com",
+  aud: "bragproof:" + bodyHash,
+  iat: Math.floor(Date.parse(finishedAt) / 1000) + 2,
+  runner_environment: "github-hosted",
+  repository: "some-maker/their-tool",
+  job_workflow_ref: WORKFLOW + "@refs/tags/check-v1",
+  job_workflow_sha: COMMIT,
+});
+
+export function witnessedReceipt(attestor: ReturnType<typeof fakeAttestor>, change: (claims: Record<string, any>) => void = () => {}, s = spec(), r = result()): Receipt {
+  const bodyHash = bodyHashOf(s, r);
+  const claims = goodGithubClaims(bodyHash, r.finishedAt);
+  change(claims);
+  return { v: 1, type: "bragproof/receipt", spec: s, result: r, bodyHash, evidence: { kind: "github-actions", token: attestor.mint(claims) } };
+}
 
 export const spec = (): CheckSpec => ({
   v: 1,
@@ -59,7 +79,7 @@ export function attestedReceipt(attestor: ReturnType<typeof fakeAttestor>, chang
   const bodyHash = bodyHashOf(s, r);
   const claims = goodClaims(bodyHash, r.finishedAt);
   change(claims);
-  return { v: 1, type: "claimcheck/receipt", spec: s, result: r, bodyHash, evidence: { kind: "gcp-confidential-space", token: attestor.mint(claims) } };
+  return { v: 1, type: "bragproof/receipt", spec: s, result: r, bodyHash, evidence: { kind: "gcp-confidential-space", token: attestor.mint(claims) } };
 }
 
-export const selfReported = (s = spec(), r = result()): Receipt => ({ v: 1, type: "claimcheck/receipt", spec: s, result: r, bodyHash: bodyHashOf(s, r), evidence: { kind: "none" } });
+export const selfReported = (s = spec(), r = result()): Receipt => ({ v: 1, type: "bragproof/receipt", spec: s, result: r, bodyHash: bodyHashOf(s, r), evidence: { kind: "none" } });

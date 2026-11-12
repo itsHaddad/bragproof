@@ -56,11 +56,13 @@ export type Evidence =
   /** Nothing but the runner's word: whoever ran it could have written anything. */
   | { kind: "none" }
   /** A token signed by Google's attestation service for a container in a Confidential Space VM. */
-  | { kind: "gcp-confidential-space"; token: string };
+  | { kind: "gcp-confidential-space"; token: string }
+  /** A token signed by GitHub for a job that ran this project's check workflow on a GitHub-hosted machine. */
+  | { kind: "github-actions"; token: string };
 
 export type Receipt = {
   v: 1;
-  type: "claimcheck/receipt";
+  type: "bragproof/receipt";
   spec: CheckSpec;
   result: CheckResult;
   /** sha256 over the canonical form of { v, spec, result }. The evidence binds this value. */

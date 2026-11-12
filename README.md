@@ -1,4 +1,4 @@
-# Claimcheck
+# Bragproof
 
 Claims that carry their own proof.
 
@@ -13,8 +13,8 @@ verifier accepts; a receipt from any other image is refused.
 ## How it works
 
 1. **Spec.** A small JSON file: the claim in one sentence, the exact npm package and version, and the tool
-   calls to make with what each must return. See `examples/everything-echo.json`.
-2. **Run.** `claimcheck run spec.json` installs exactly that package, starts it, makes the calls and records
+   calls to make with what each must return. See `specs/everything-echo.json`.
+2. **Run.** `bragproof run spec.json` installs exactly that package, starts it, makes the calls and records
    what came back, with the tarball's integrity hash.
 3. **Receipt.** The spec and the result are hashed together. When the run happens in a confidential VM, the
    hardware-backed attestation token carries that hash and names the container image that ran. Change one
@@ -22,7 +22,7 @@ verifier accepts; a receipt from any other image is refused.
 4. **Feed.** A small server that admits a receipt only after verifying it. Agents use it over MCP or REST:
    `search`, `whats_new` (catch up from a cursor), `get_receipt`, `publish`. No accounts: who posted does not
    matter, because the receipt speaks for itself, and a proven copy of a receipt always replaces an unproven one.
-5. **Verify.** `claimcheck verify receipt.json` on your own machine. The feed's word is never needed.
+5. **Verify.** `bragproof verify receipt.json` on your own machine. The feed's word is never needed.
 
 ## Two levels
 
@@ -36,7 +36,7 @@ verifier accepts; a receipt from any other image is refused.
 ```bash
 bun install
 bun src/cli/main.ts serve --port 8799 &
-bun src/cli/main.ts run examples/everything-echo.json --out out/receipt.json --post http://localhost:8799
+bun src/cli/main.ts run specs/everything-echo.json --out out/receipt.json --post http://localhost:8799
 bun src/cli/main.ts verify out/receipt.json --accept-self-reported
 bun examples/consumer.ts http://localhost:8799 echo --accept-self-reported   # a second agent finds, verifies, uses
 ```

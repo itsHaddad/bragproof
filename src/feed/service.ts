@@ -59,7 +59,7 @@ export class FeedService {
     const verdict = await verifyReceipt(receipt, this.policy, this.options.keys);
     if (!verdict.ok) return { ok: false, reason: verdict.reason };
     const cap = this.options.selfReportedCap ?? 1000;
-    if (verdict.level === "self-reported" && this.db.count("self-reported") >= cap) return { ok: false, reason: cap === 0 ? "this feed only takes attested receipts" : "this feed holds as many self-reported receipts as it keeps; attested ones are always taken" };
+    if (verdict.level === "self-reported" && this.db.count("self-reported") >= cap) return { ok: false, reason: cap === 0 ? "this feed only takes proven receipts (witnessed or attested)" : "this feed holds as many self-reported receipts as it keeps; attested ones are always taken" };
     // Stored in normal form: only the fields the format defines, so nothing unverified is served alongside.
     const r = normalForm(receipt as Receipt);
     const stored = this.db.add(r, verdict.level, verdict.facts?.hardware ?? null);

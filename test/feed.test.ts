@@ -3,7 +3,7 @@ import { FeedDb } from "../src/feed/db.ts";
 import { feedHandler } from "../src/feed/server.ts";
 import { FeedService } from "../src/feed/service.ts";
 import { verifyReceipt } from "../src/receipt/receipt.ts";
-import { attestedReceipt, fakeAttestor, policy, selfReported, spec } from "./helpers.ts";
+import { attestedReceipt, fakeAttestor, policy, selfReported, spec, witnessedReceipt } from "./helpers.ts";
 
 const attestor = fakeAttestor();
 let handle: ReturnType<typeof feedHandler>;
@@ -50,6 +50,18 @@ describe("publishing", () => {
     // and the other way round: a later copy without proof does not downgrade it
     expect(await (await post("/v1/posts", { ...real, evidence: { kind: "none" } })).json()).toMatchObject({ level: "attested", added: false });
     expect((await get("/v1/posts/" + real.bodyHash)).evidence.kind).toBe("gcp-confidential-space");
+  });
+
+  test("witnessed posts are found by default, hidden when hardware evidence is asked for, and upgraded by it", async () => {
+    const w = witnessedReceipt(attestor);
+    expect(await (await post("/v1/posts", w)).json()).toMatchObject({ level: "witnessed", added: true });
+    expect((await get("/v1/posts")).posts[0].level).toBe("witnessed");
+    expect((await get("/v1/posts?level=attested")).posts).toHaveLength(0);
+    expect(await (await post("/v1/posts", { ...w, evidence: { kind: "none" } })).json()).toMatchObject({ level: "witnessed", added: false });
+    const hw = attestedReceipt(attestor);
+    expect(hw.bodyHash).toBe(w.bodyHash);
+    expect(await (await post("/v1/posts", hw)).json()).toMatchObject({ level: "attested", added: true });
+    expect((await get("/v1/posts?level=attested")).posts).toHaveLength(1);
   });
 
   test("text smuggled in beside a real receipt is refused", async () => {
@@ -124,7 +136,7 @@ describe("finding and catching up", () => {
 
 describe("the MCP face", () => {
   test("an agent can publish, search, catch up and fetch the receipt", async () => {
-    expect((await mcp("initialize")).serverInfo.name).toBe("claimcheck-feed");
+    expect((await mcp("initialize")).serverInfo.name).toBe("bragproof-feed");
     expect((await mcp("tools/list")).tools.map((t: any) => t.name)).toEqual(["search", "whats_new", "get_receipt", "publish"]);
     const r = attestedReceipt(attestor);
     expect(await tool("publish", { receipt: r })).toMatchObject({ ok: true, level: "attested", added: true });

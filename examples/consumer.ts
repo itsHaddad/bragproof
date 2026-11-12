@@ -21,7 +21,7 @@ const call = async (name: string, args: object) => {
 };
 
 console.log(`1. asking the feed for: ${words.join(" ")}`);
-const found = await call("search", { q: words.join(" "), level: acceptSelf ? "any" : "attested" });
+const found = await call("search", { q: words.join(" "), level: acceptSelf ? "any" : "witnessed" });
 if (!found.posts.length) {
   console.log("   nothing found");
   process.exit(1);
@@ -33,7 +33,7 @@ console.log("2. fetching the receipt and verifying it here, not taking the feed'
 const receipt = (await call("get_receipt", { id: post.id })).receipt as Receipt;
 const verdict = await verifyReceipt(receipt);
 console.log("   " + JSON.stringify(verdict));
-if (!verdict.ok || !verdict.pass || (verdict.level !== "attested" && !acceptSelf)) {
+if (!verdict.ok || !verdict.pass || (verdict.level === "self-reported" && !acceptSelf)) {
   console.log("   not good enough to act on; stopping");
   process.exit(2);
 }

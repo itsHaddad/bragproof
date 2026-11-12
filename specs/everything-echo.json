@@ -9,7 +9,7 @@
     "homepage": "https://github.com/modelcontextprotocol/servers"
   },
   "steps": [
-    { "tool": "echo", "arguments": { "message": "claimcheck-7f3a" }, "expect": { "contains": "claimcheck-7f3a" } }
+    { "tool": "echo", "arguments": { "message": "bragproof-7f3a" }, "expect": { "contains": "bragproof-7f3a" } }
   ],
   "tags": ["mcp", "reference", "testing"]
 }

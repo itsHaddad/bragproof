@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { verifyReceipt } from "../src/receipt/receipt.ts";
 import type { Receipt } from "../src/receipt/types.ts";
-import { attestedReceipt, fakeAttestor, policy, result, RUNNER, selfReported, spec } from "./helpers.ts";
+import { attestedReceipt, fakeAttestor, policy, result, RUNNER, selfReported, spec, witnessedReceipt } from "./helpers.ts";
 
 const attestor = fakeAttestor();
 const verify = (r: unknown) => verifyReceipt(r, policy, attestor.keys);
@@ -24,6 +24,44 @@ describe("an honest receipt", () => {
 
   test("without evidence it is intact but only self-reported", async () => {
     expect(await verify(selfReported())).toMatchObject({ ok: true, level: "self-reported" });
+  });
+});
+
+describe("witnessed by GitHub", () => {
+  test("an honest run of the check workflow is believed, as witnessed", async () => {
+    expect(await verify(witnessedReceipt(attestor))).toMatchObject({ ok: true, level: "witnessed", pass: true, facts: { host: "github-actions:some-maker/their-tool" } });
+  });
+
+  test("the claimant's own machine as the runner", async () => {
+    await refused(witnessedReceipt(attestor, (c) => (c.runner_environment = "self-hosted")), /does not host/);
+  });
+
+  test("the claimant's own workflow, or a fork's copy of ours", async () => {
+    await refused(witnessedReceipt(attestor, (c) => (c.job_workflow_ref = "some-maker/their-tool/.github/workflows/check.yml@refs/heads/main")), /not this project's check workflow/);
+    await refused(witnessedReceipt(attestor, (c) => (c.job_workflow_ref = "example/bragproof-evil/.github/workflows/check.yml@refs/heads/main")), /not this project's check workflow/);
+    await refused(witnessedReceipt(attestor, (c) => (c.job_workflow_ref = "example/bragproof/.github/workflows/check.yml.evil.yml@x")), /not this project's check workflow/);
+  });
+
+  test("a commit of the workflow that is not accepted", async () => {
+    await refused(witnessedReceipt(attestor, (c) => (c.job_workflow_sha = "ee".repeat(20))), /does not accept/);
+  });
+
+  test("a token for another receipt, or for no receipt in particular", async () => {
+    const real = witnessedReceipt(attestor);
+    const other = selfReported({ ...spec(), claim: "Another claim entirely." });
+    await refused({ ...other, evidence: real.evidence }, /another run/);
+    await refused(witnessedReceipt(attestor, (c) => (c.aud = "https://github.com/some-maker")), /another run/);
+  });
+
+  test("a hardware token passed off as a GitHub one, and the reverse", async () => {
+    const hw = attestedReceipt(attestor);
+    await refused({ ...hw, evidence: { kind: "github-actions", token: (hw.evidence as { token: string }).token } }, /issuer is not GitHub/);
+    const gh = witnessedReceipt(attestor);
+    await refused({ ...gh, evidence: { kind: "gcp-confidential-space", token: (gh.evidence as { token: string }).token } }, /issuer is not Google/);
+  });
+
+  test("a token minted long after the run", async () => {
+    await refused(witnessedReceipt(attestor, (c) => (c.iat += 86_400)), /time of the run/);
   });
 });
 
@@ -145,7 +183,7 @@ describe("cheating", () => {
   });
 
   test("things that are not receipts", async () => {
-    for (const junk of [null, 42, "receipt", {}, { v: 1, type: "claimcheck/receipt" }, { ...selfReported(), evidence: { kind: "trust-me" } }]) expect((await verify(junk)).ok).toBe(false);
+    for (const junk of [null, 42, "receipt", {}, { v: 1, type: "bragproof/receipt" }, { ...selfReported(), evidence: { kind: "trust-me" } }]) expect((await verify(junk)).ok).toBe(false);
     const r = selfReported() as Receipt;
     (r.spec.subject as any).version = "latest";
     expect((await verify(r)).ok).toBe(false);
