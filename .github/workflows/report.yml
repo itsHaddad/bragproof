@@ -32,7 +32,7 @@ jobs:
       - id: plan
         env:
           SOURCE: ${{ inputs.source || (github.event.schedule == '17 3 * * 1' && 'population.json') || 'queue' }}
-          SHARDS: ${{ inputs.shards || (github.event.schedule == '17 3 * * 1' && '20') || '1' }}
+          SHARDS: ${{ inputs.shards || (github.event.schedule == '17 3 * * 1' && '12') || '1' }}
         run: |
           case "$SHARDS" in ''|*[!0-9]*) SHARDS=1;; esac
           [ "$SHARDS" -ge 1 ] && [ "$SHARDS" -le 40 ] || SHARDS=1
