@@ -79,7 +79,9 @@ const bad = [];
 for (let fd = 3; fd < 1024; fd++) {
   let st;
   try { st = fs.fstatSync(fd); } catch { continue; }
-  const kind = st.isDirectory() ? "directory" : st.isSocket() ? "socket" : st.isFile() ? "file" : st.isBlockDevice() ? "block device" : st.isCharacterDevice() ? "character device" : "";
+  // Node itself opens the jail's own null and random devices (1:3, 1:5, 1:8, 1:9); any other device is foreign.
+  const own = st.isCharacterDevice() && [259, 261, 264, 265].includes(st.rdev);
+  const kind = st.isDirectory() ? "directory" : st.isSocket() ? "socket" : st.isFile() ? "file" : st.isBlockDevice() ? "block device" : st.isCharacterDevice() && !own ? "character device " + st.rdev : "";
   if (kind) bad.push(fd + ":" + kind);
 }
 if (bad.length) { console.error("inherited " + bad.join(", ")); process.exit(6); }
