@@ -41,8 +41,8 @@ export function reportPage(d: ReportDetail, claims: ClaimRow[], origin: string):
   ].filter(([n]) => n !== "");
   const few = (xs: string[]) => xs.slice(0, 3).map((x) => `<code>${esc(x)}</code>`).join(", ") + (xs.length > 3 ? ` +${xs.length - 3}` : "");
   const reason = started ? "" : saidFirst(r);
-  const wants = started ? "nothing" : s.needs.length ? few(s.needs) : reason ? `it did not say in so many words. It said: <q>${esc(reason)}</q>` : "it did not say";
-  const answer = r.install.ok ? `<p class="answer"><b>Needs to start:</b> ${wants}${r.calls?.length ? `<br><b>Answers a call with no setup:</b> ${s.callsAnswered} of ${r.calls.length} tried` : ""}${r.network ? `<br><b>Contacts while installing and starting:</b> ${s.contacts.length ? few(s.contacts) : "nothing"}` : ""}</p>` : "";
+  const wants = started ? "nothing" : s.needs.length ? few(s.needs) : reason ? `unclear. Its error said: <q>${esc(reason)}</q>` : "it did not say";
+  const answer = r.install.ok ? `<p class="answer"><b>Needs to start:</b> ${wants}${r.calls?.length ? `<br><b>Returns a result when called with no setup:</b> ${s.callsAnswered} of ${r.calls.length} tools tried` : ""}${r.network ? `<br><b>Contacts while installing and starting:</b> ${s.contacts.length ? few(s.contacts) : "nothing"}` : ""}</p>` : "";
   const contacted = `<h2>What it contacted</h2>
 ${!r.network ? '<p class="muted">Not recorded for this run.</p>' : s.contacts.length ? `<ul>${s.contacts.map((n) => `<li><code>${esc(n)}</code>${hostNote(n) ? `<span class="muted">: ${hostNote(n)}</span>` : ""}</li>`).join("")}</ul><p class="small muted">Hosts it looked up or connected to while installing and starting with no input, watched from outside its sandbox. The npm registry is left out. Says nothing about what its tools contact when called.</p>` : '<p>Nothing besides the npm registry it was installed from. <span class="muted">Watched from outside its sandbox while it was installed and started with no input. Its tools may still contact things when called.</span></p>'}`;
   const tool = (t: Report["tools"][number]) => `<details><summary><code>${esc(t.name)}</code>${t.params.length ? ` <span class="muted small">${t.params.map(esc).join(", ")}</span>` : ""}</summary><pre class="cmd">${esc(t.description || "(no description)")}</pre></details>`;
@@ -67,9 +67,9 @@ ${s.needs.length ? `<p>Its error output names these settings: ${s.needs.map((n) 
 ${!started && (r.start.stderr || r.start.error || r.install.error) ? `<details open><summary>What it said when it did not start</summary><pre class="cmd">${esc(r.start.stderr || r.start.error || r.install.error)}</pre><p class="small muted">Written by the package or by npm, not by this site.</p></details>` : ""}
 
 ${r.calls?.length ? `<h2>Calling its tools</h2>
-<p>${plural(r.calls.length, "tool")} that ${r.calls.length === 1 ? "takes" : "take"} no input and ${r.calls.length === 1 ? "looks" : "look"} read-only ${r.calls.length === 1 ? "was" : "were"} called once with nothing. <b>${s.callsAnswered} answered.</b></p>
-<div class="scroll"><table><tbody>${r.calls.map((c) => `<tr><td><code>${esc(c.tool)}</code></td><td>${c.ok ? `<span class="badge ok">Answered</span> <span class="muted nw">${(c.ms / 1000).toFixed(1)} s · ${c.bytes.toLocaleString("en")} characters</span>` : `<span class="badge weak">No answer</span> <span class="muted">${esc((c.error ?? "").slice(0, 160))}</span>`}</td></tr>`).join("")}</tbody></table></div>
-${r.network?.callNames ? (s.callContacts.length ? `<p>While being called it contacted, for the first time: ${s.callContacts.map((n) => `<code>${esc(n)}</code>${hostNote(n) ? ` <span class="muted">(${hostNote(n)})</span>` : ""}`).join(", ")}.</p>` : "<p>While being called it contacted nothing it had not already contacted.</p>") : ""}
+<p>${plural(r.calls.length, "tool")} that ${r.calls.length === 1 ? "takes" : "take"} no input and ${r.calls.length === 1 ? "looks" : "look"} read-only ${r.calls.length === 1 ? "was" : "were"} called once with nothing. <b>${s.callsAnswered} returned a result.</b></p>
+<div class="scroll"><table><tbody>${r.calls.map((c) => `<tr><td><code>${esc(c.tool)}</code></td><td>${c.ok ? `<span class="badge ok">Returned a result</span> <span class="muted nw">${c.ms < 100 ? "under 0.1" : (c.ms / 1000).toFixed(1)} s · ${c.bytes.toLocaleString("en")} characters</span>` : `<span class="badge weak">No usable answer</span> <span class="muted">${esc((c.error ?? "").slice(0, 160))}</span>`}</td></tr>`).join("")}</tbody></table></div>
+${r.network?.callNames ? (s.callContacts.length ? `<p>During the calls (not necessarily because of them) it first contacted: ${s.callContacts.map((n) => `<code>${esc(n)}</code>${hostNote(n) ? ` <span class="muted">(${hostNote(n)})</span>` : ""}`).join(", ")}.</p>` : "<p>During the calls it contacted nothing it had not already contacted.</p>") : ""}
 <p class="small muted">Only tools whose names read like looking something up, with no required input, are tried, five at most. Tools that need input, and anything that sounds like it changes or sends something, are not called.</p>
 
 ` : ""}${started ? `<h2>What its tools tell an agent</h2>
@@ -99,7 +99,7 @@ ${history.length > 1 ? `<h2>Versions reported</h2><div class="scroll"><table><th
 
 <h2>Check this report yourself</h2>
 <p>This site did not write the report. A public job on a GitHub-hosted machine did${r.host ? `: <a href="${esc(r.host.run)}" rel="noopener">the run</a>, from <a href="${REPO}/tree/${esc(r.host.commit)}" rel="noopener">this commit</a> of the open-source runner` : ""}. GitHub signed a token that names that job and the hash of the report, so any edit since would show.</p>
-<p class="small"><a href="/v1/reports/${esc(r.package)}">Report as JSON</a> <a href="/v1/reports/${esc(r.package)}?raw=1" style="margin-left:14px">Exact text and token</a> <a href="/about#check" style="margin-left:14px">How to verify it</a></p>
+<p class="small links"><a href="/v1/reports/${esc(r.package)}">Report as JSON</a><a href="/v1/reports/${esc(r.package)}?raw=1">Exact text and token</a><a href="/about#check">How to verify it</a></p>
 
 <h2>Show it on your README</h2>
 <p><img src="/badge/${esc(r.package)}.svg" alt="Bragproof: ${esc(outcomeLabel[s.outcome])}" height="20"></p>

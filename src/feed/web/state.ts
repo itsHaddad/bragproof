@@ -27,7 +27,7 @@ export function statePage(s: State, origin: string): string {
 <p class="small"><a href="/?show=started#results">Browse the ones that start</a> · <a href="/?show=needs-setup#results">the ones that need setup</a></p>
 
 ${s.callable ? `<h2>Do they answer when called?</h2>
-<p>${s.callable} of the servers that start have a tool that takes no input and looks read-only. Called once with nothing, ${s.answering} (${pct(s.answering, s.callable)}%) gave an answer from at least one such tool. The rest list tools but need a key, a login or a setting before any of them works.</p>` : ""}
+<p>For ${s.callable} servers the runner found a tool it was willing to call blind: one that takes no input and reads like looking something up. Called once with nothing, ${s.answering} (${pct(s.answering, s.callable)}%) returned a result not marked as an error from at least one such tool. The rest returned an error, asked for setup, or did not reply in time.</p>` : ""}
 
 <h2>What they contact when installed and started</h2>
 ${list(s.hosts, "Nothing recorded yet.")}

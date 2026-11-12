@@ -283,6 +283,9 @@ describe("calling tools blind", () => {
     const { safeToCall } = await import("../src/check/report.ts");
     expect(safeToCall([t("list_timezones"), t("get-current-time"), t("docs.index"), t("listAllowedDirectories"), t("ef_list_lore_categories")])).toEqual(["list_timezones", "get-current-time", "docs.index", "listAllowedDirectories", "ef_list_lore_categories"]);
     expect(safeToCall([t("get_user", ["id"]), t("delete_all"), t("list_and_delete"), t("create_account"), t("get_and_send_report"), t("deploy"), t("echo"), t("list_then_generate_image")])).toEqual([]);
+    expect(safeToCall([t("backup_now"), t("mark_all_read"), t("find_and_replace"), t("toggle_status"), t("show_notification"), t("get_temp_email"), t("get_faucet_tokens"), t("help_request"), t("ping_all_hosts"), t("search_and_email"), t("end_current_session")])).toEqual([]);
+    expect(safeToCall([t("list_skills"), t("get_history"), t("list_presets"), t("list_types"), t("get_news")])).toEqual(["list_skills", "get_history", "list_presets", "list_types", "get_news"]);
+    expect(safeToCall([{ ...t("list_items"), annotations: { destructiveHint: true } }, { ...t("get_info"), annotations: { readOnlyHint: false } }, { ...t("get_status"), annotations: { readOnlyHint: true } }])).toEqual(["get_status"]);
     expect(safeToCall(Array.from({ length: 9 }, (_, i) => t("list_" + "abcdefghi"[i]))).length).toBe(5);
   });
   test("a report says which called tools answered and what was first contacted during the calls", async () => {
@@ -293,7 +296,7 @@ describe("calling tools blind", () => {
     const body = JSON.stringify({ report: text, token: attestor.mint(claimsFor(text)) });
     expect((await handle(new Request("https://feed.test/v1/reports", { method: "POST", headers: { "content-type": "application/json", "content-length": String(body.length) }, body }))).status).toBe(201);
     const page = await (await handle(new Request("https://feed.test/r/@example/echo"))).text();
-    expect(page).toContain("1 of 2 tried");
+    expect(page).toContain("1 of 2 tools tried");
     expect(page).toContain("api.example.com");
     expect(page).not.toContain("<b>API key");
     const state = (await (await handle(new Request("https://feed.test/v1/state"))).json()) as any;

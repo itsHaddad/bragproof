@@ -107,9 +107,9 @@ export class McpStdioClient {
   }
 
   /** The tools with their descriptions and input schemas, as the server states them. */
-  async describeTools(descriptionLimit = 600): Promise<{ name: string; description: string; inputSchema: unknown }[]> {
+  async describeTools(descriptionLimit = 600): Promise<{ name: string; description: string; inputSchema: unknown; annotations?: { readOnlyHint?: unknown; destructiveHint?: unknown } }[]> {
     const res = await this.request("tools/list", {});
-    return (Array.isArray(res?.tools) ? res.tools : []).slice(0, 200).map((t: any) => ({ name: String(t?.name ?? ""), description: String(t?.description ?? "").slice(0, descriptionLimit), inputSchema: t?.inputSchema ?? null }));
+    return (Array.isArray(res?.tools) ? res.tools : []).slice(0, 200).map((t: any) => ({ name: String(t?.name ?? ""), description: String(t?.description ?? "").slice(0, descriptionLimit), inputSchema: t?.inputSchema ?? null, ...(t?.annotations && typeof t.annotations === "object" ? { annotations: t.annotations } : {}) }));
   }
 
   /** Calls a tool and returns its text content joined; a tool-level error is thrown. */

@@ -21,15 +21,19 @@ export function pickBin(pkg: string, bins: string[]): string | undefined {
 }
 
 const READS = new Set(["list", "get", "search", "find", "read", "show", "describe", "status", "health", "ping", "version", "help", "docs", "doc", "info", "whoami", "about", "capabilities", "current", "now", "time", "stats", "summary", "overview", "categories", "guide", "guidelines"]);
-const WRITES = /creat|delet|remov|updat|^set$|writ|send|post|deploy|^run$|exec|kill|stop|start|install|^add$|^put$|push|publish|pay|buy|transfer|sign|login|logout|auth|reset|clear|drop|upload|register|open|launch|generat|mak|build|sav|stor|edit|modif|import|export|sync|init|new|book|order|cancel|approv|merg|commit|click|typ|navigat|scrap|crawl|fetch|download|record|captur|screenshot|shutdown|restart|enabl|disabl|grant|revok|invit|subscrib|claim|mint|swap|trade|withdraw|deposit/;
+// Word stems that suggest a tool changes, sends, spends or reaches out. Short stems are anchored so that
+// "skills", "history", "presets", "types", "news", "design" and "authors" are not caught by accident.
+const WRITES = /creat|delet|remov|updat|^set$|writ|send|^post$|deploy|^run$|exec|^kill|^stop|^start|install|^add$|^put$|push|publish|^pay|^buy|transfer|^sign|login|logout|^auth$|authoriz|authentic|^reset|clear|^drop|upload|register|^open$|launch|generat|^mak(e|es|ing)$|^build$|^sav(e|es|ing)$|^stor(e|es|ed|ing)$|^edit|modif|import|export|sync|^init|^new$|^book$|^order$|cancel|approv|merg|^commit$|click|^typ(e|ing)$|navigat|scrap|crawl|fetch|^download$|record|captur|screenshot|shutdown|restart|enabl|disabl|grant|revok|invit|subscrib|claim|mint|swap|trade|withdraw|deposit|mark|toggl|replac|notif|mail|messag|sms|tweet|submit|request|trigger|reboot|backup|restor|flush|purg|destroy|terminat|^end$|clos|^mov|renam|rotat|refresh|faucet|airdrop|scan|prob|^temp|dispos|play|^call|shell|command|^now$|^all$/;
 
 /** The tools worth calling blind: no required input, a name that reads like looking something up, and no
  * word in the name that suggests it changes or sends anything. A handful at most. */
-export function safeToCall(tools: { name: string; inputSchema: unknown }[]): string[] {
+export function safeToCall(tools: { name: string; inputSchema: unknown; annotations?: { readOnlyHint?: unknown; destructiveHint?: unknown } }[]): string[] {
   const picked: string[] = [];
   for (const t of tools) {
     const schema = t.inputSchema as { required?: unknown; properties?: unknown } | null;
     if (Array.isArray(schema?.required) && schema.required.length > 0) continue;
+    // A server that says a tool is not read-only, or is destructive, is taken at its word.
+    if (t.annotations?.readOnlyHint === false || t.annotations?.destructiveHint === true) continue;
     const words = t.name.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase().split(/[^a-z]+/).filter(Boolean);
     if (!words.slice(0, 3).some((w) => READS.has(w)) || words.some((w) => WRITES.test(w))) continue;
     picked.push(t.name);
@@ -67,6 +71,7 @@ async function installFacts(started: Started, pkg: string): Promise<Partial<Repo
  * happened. Never throws for a package that fails: failing is a finding. Throws only if the jail cannot be
  * trusted. */
 export async function makeReport(pkg: string, version: string, bin?: string): Promise<Report> {
+  const born = Date.now();
   const report: Report = { v: 1, package: pkg, version, ranAt: new Date().toISOString(), install: { ok: false }, start: { ok: false }, tools: [], toolsHash: sha256Hex(""), wrote: [] };
   const subject: Subject = { kind: "mcp-stdio", name: pkg, package: pkg, version, ...(bin ? { bin } : {}) };
   let marker = "";
@@ -104,7 +109,8 @@ export async function makeReport(pkg: string, version: string, bin?: string): Pr
       const info = await started.client.initialize();
       const defs = await started.client.describeTools(1_000_000);
       report.start = { ok: true, ms: Date.now() - startedAt, serverName: clean(info.serverName, 100), serverVersion: clean(info.serverVersion, 40), protocol: clean(info.protocol, 20) };
-      report.toolsHash = sha256Hex(canonical(defs));
+      // Hashed without the hints, so the hash still means "names, descriptions and inputs".
+      report.toolsHash = sha256Hex(canonical(defs.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema }))));
       report.tools = defs.map((t): ReportTool => ({ name: clean(t.name, 200), description: clean(t.description, 3000), params: paramsOf(t.inputSchema) }));
       const callable = safeToCall(defs);
       if (callable.length) {
@@ -114,12 +120,18 @@ export async function makeReport(pkg: string, version: string, bin?: string): Pr
         report.callsAt = new Date().toISOString();
         await new Promise((r) => setTimeout(r, 1000));
         const calls: ReportCall[] = [];
+        let slow = 0;
         for (const name of callable) {
+          // The whole run is stopped from outside after five minutes: calls must not cost a server its report.
+          if (Date.now() - born > 200_000 || slow >= 2) break;
           const began = Date.now();
           try {
             const text = await started.client.callTool(name, {}, 15_000);
-            calls.push({ tool: clean(name, 200), ok: true, ms: Date.now() - began, bytes: text.length });
+            // A short reply that only asks for a key or a login is not an answer.
+            const asks = text.length < 600 && /api.?key|access.?token|unauthori[sz]ed|not authenticated|credentials|log ?in\b|sign ?in\b|please (set|provide|configure)|\b40[13]\b/i.test(text);
+            calls.push({ tool: clean(name, 200), ok: !asks, ms: Date.now() - began, bytes: text.length, ...(asks ? { error: clean("replied, but asks for setup: " + text, 300) } : {}) });
           } catch (e) {
+            if (/timed out/.test((e as Error).message)) slow++;
             calls.push({ tool: clean(name, 200), ok: false, ms: Date.now() - began, bytes: 0, error: clean((e as Error).message, 300) });
           }
         }
