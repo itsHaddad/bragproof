@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "mcp-echo-server",
+    "package": "mcp-echo-server",
+    "version": "1.0.0"
+  },
+  "steps": [
+    {
+      "tool": "echo",
+      "arguments": {
+        "message": "bragproof-7f3a"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

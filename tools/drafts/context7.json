@@ -1,0 +1,22 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@upstash/context7-mcp",
+    "package": "@upstash/context7-mcp",
+    "version": "4.6.0"
+  },
+  "steps": [
+    {
+      "tool": "resolve-library-id",
+      "arguments": {
+        "libraryName": "react",
+        "query": "react hooks"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

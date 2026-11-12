@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "nx-mcp",
+    "package": "nx-mcp",
+    "version": "0.25.3"
+  },
+  "steps": [
+    {
+      "tool": "nx_docs",
+      "arguments": {
+        "userQuery": "how do I run a task"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

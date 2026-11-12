@@ -1,0 +1,28 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@odgrim/mcp-datetime",
+    "package": "@odgrim/mcp-datetime",
+    "version": "0.2.0"
+  },
+  "steps": [
+    {
+      "tool": "list-timezones",
+      "arguments": {},
+      "expect": {
+        "matches": "\\S"
+      }
+    },
+    {
+      "tool": "get-time-in-timezone",
+      "arguments": {
+        "timezone": "UTC"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

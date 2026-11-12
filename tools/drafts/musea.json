@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@vizejs/musea-mcp-server",
+    "package": "@vizejs/musea-mcp-server",
+    "version": "0.746.0"
+  },
+  "steps": [
+    {
+      "tool": "list_components",
+      "arguments": {},
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

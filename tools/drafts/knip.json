@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@knip/mcp",
+    "package": "@knip/mcp",
+    "version": "0.0.38"
+  },
+  "steps": [
+    {
+      "tool": "knip-docs",
+      "arguments": {
+        "topic": "configuration"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

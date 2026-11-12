@@ -1,0 +1,41 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@modelcontextprotocol/server-filesystem",
+    "package": "@modelcontextprotocol/server-filesystem",
+    "version": "2.3.0",
+    "args": [
+      "/tmp"
+    ]
+  },
+  "steps": [
+    {
+      "tool": "list_allowed_directories",
+      "arguments": {},
+      "expect": {
+        "matches": "\\S"
+      }
+    },
+    {
+      "tool": "write_file",
+      "arguments": {
+        "path": "/tmp/bragproof.txt",
+        "content": "bragproof-7f3a"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    },
+    {
+      "tool": "read_text_file",
+      "arguments": {
+        "path": "/tmp/bragproof.txt"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

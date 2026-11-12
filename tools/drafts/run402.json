@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "run402-mcp",
+    "package": "run402-mcp",
+    "version": "4.150.0"
+  },
+  "steps": [
+    {
+      "tool": "docs",
+      "arguments": {},
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

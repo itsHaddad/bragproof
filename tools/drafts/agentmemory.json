@@ -1,0 +1,30 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@agentmemory/mcp",
+    "package": "@agentmemory/mcp",
+    "version": "0.9.33"
+  },
+  "steps": [
+    {
+      "tool": "memory_save",
+      "arguments": {
+        "content": "bragproof-7f3a is a test note"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    },
+    {
+      "tool": "memory_recall",
+      "arguments": {
+        "query": "bragproof-7f3a"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

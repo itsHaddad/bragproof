@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@ui5/mcp-server",
+    "package": "@ui5/mcp-server",
+    "version": "0.3.3"
+  },
+  "steps": [
+    {
+      "tool": "get_guidelines",
+      "arguments": {},
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

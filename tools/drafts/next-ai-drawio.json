@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@next-ai-drawio/mcp-server",
+    "package": "@next-ai-drawio/mcp-server",
+    "version": "0.4.13"
+  },
+  "steps": [
+    {
+      "tool": "get_drawing_guide",
+      "arguments": {},
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

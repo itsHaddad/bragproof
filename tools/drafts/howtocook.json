@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "howtocook-mcp",
+    "package": "howtocook-mcp",
+    "version": "0.2.2"
+  },
+  "steps": [
+    {
+      "tool": "mcp_howtocook_whatToEat",
+      "arguments": {
+        "peopleCount": 2
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

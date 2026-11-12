@@ -1,0 +1,28 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@godxjp/ui-mcp",
+    "package": "@godxjp/ui-mcp",
+    "version": "33.30.2"
+  },
+  "steps": [
+    {
+      "tool": "list_skills",
+      "arguments": {},
+      "expect": {
+        "matches": "\\S"
+      }
+    },
+    {
+      "tool": "list_utilities",
+      "arguments": {
+        "kind": "hook"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

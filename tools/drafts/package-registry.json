@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "package-registry-mcp",
+    "package": "package-registry-mcp",
+    "version": "2.1.0"
+  },
+  "steps": [
+    {
+      "tool": "get-npm-package-details",
+      "arguments": {
+        "name": "left-pad"
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

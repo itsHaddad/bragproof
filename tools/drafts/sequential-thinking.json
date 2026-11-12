@@ -1,0 +1,24 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@modelcontextprotocol/server-sequential-thinking",
+    "package": "@modelcontextprotocol/server-sequential-thinking",
+    "version": "2.1.1"
+  },
+  "steps": [
+    {
+      "tool": "sequentialthinking",
+      "arguments": {
+        "thought": "Check that this tool answers.",
+        "nextThoughtNeeded": false,
+        "thoughtNumber": 1,
+        "totalThoughts": 1
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

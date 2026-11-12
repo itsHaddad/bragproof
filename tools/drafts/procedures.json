@@ -1,0 +1,33 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@procedures/mcp-dev-tools",
+    "package": "@procedures/mcp-dev-tools",
+    "version": "0.55.0"
+  },
+  "steps": [
+    {
+      "tool": "client.and",
+      "arguments": {
+        "values": [
+          true,
+          "bragproof"
+        ]
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    },
+    {
+      "tool": "client.not",
+      "arguments": {
+        "value": false
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

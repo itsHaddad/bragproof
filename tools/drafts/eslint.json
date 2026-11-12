@@ -1,0 +1,23 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@eslint/mcp",
+    "package": "@eslint/mcp",
+    "version": "0.3.16"
+  },
+  "steps": [
+    {
+      "tool": "lint-files",
+      "arguments": {
+        "filePaths": [
+          "/tmp/none.js"
+        ]
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

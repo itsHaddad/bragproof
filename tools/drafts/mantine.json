@@ -1,0 +1,22 @@
+{
+  "v": 1,
+  "claim": "draft",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "@mantine/mcp-server",
+    "package": "@mantine/mcp-server",
+    "version": "9.8.0"
+  },
+  "steps": [
+    {
+      "tool": "list_items",
+      "arguments": {
+        "kind": "hook",
+        "limit": 5
+      },
+      "expect": {
+        "matches": "\\S"
+      }
+    }
+  ]
+}

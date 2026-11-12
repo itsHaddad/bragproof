@@ -1,0 +1,33 @@
+name: try
+# Runs draft specs (tools/drafts/) in the runner's jail and keeps the unproven receipts, to see what each tool
+# really returns before a claim is written. No token is requested and nothing is published.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  try:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run this shard's drafts
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          image=$(grep -o 'ghcr.io/itshaddad/bragproof-runner@sha256:[0-9a-f]*' .github/workflows/check.yml | head -1)
+          mkdir -p receipts; i=0
+          for f in tools/drafts/*.json; do
+            i=$((i+1)); [ $((i % 6)) = "$SHARD" ] || continue
+            name=$(basename "$f" .json); echo "== $name"
+            timeout 420 docker run --rm --security-opt no-new-privileges --memory 3g -e CHECK_SPEC_B64="$(base64 -w0 "$f")" "$image" 2>"receipts/$name.err" | grep -o '^BRAGPROOF-RECEIPT:[A-Za-z0-9+/=]*$' | cut -d: -f2 | base64 -d > "receipts/$name.json" || true
+            tail -2 "receipts/$name.err"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: receipts-${{ matrix.shard }}
+          path: receipts
