@@ -7,6 +7,7 @@ export class McpStdioClient {
   private buffer = "";
   private waiting = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   private closed: Error | null = null;
+  private errTail = "";
 
   constructor(command: string, args: string[], options: { cwd: string; env: Record<string, string>; detached: boolean; stdio: ["pipe", "pipe", "pipe"] }) {
     this.child = spawn(command, args, options);
@@ -14,7 +15,11 @@ export class McpStdioClient {
     this.child.stdin.on("error", () => {});
     this.child.stdout.setEncoding("utf8");
     this.child.stdout.on("data", (chunk: string) => this.onData(chunk));
-    this.child.stderr.resume();
+    this.child.stderr.setEncoding("utf8");
+    // The end of what the subject wrote to its error stream: when it will not start, this says why.
+    this.child.stderr.on("data", (chunk: string) => {
+      this.errTail = (this.errTail + chunk).slice(-4000);
+    });
     const fail = (why: string) => {
       this.closed = new Error(why);
       for (const w of this.waiting.values()) w.reject(this.closed);
@@ -78,9 +83,15 @@ export class McpStdioClient {
     });
   }
 
-  async initialize(): Promise<void> {
-    await this.request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "bragproof", version: "0.1.0" } });
+  /** What the subject last wrote to its error stream. Untrusted text. */
+  get stderrTail(): string {
+    return this.errTail;
+  }
+
+  async initialize(): Promise<{ serverName: string; serverVersion: string; protocol: string }> {
+    const res = await this.request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "bragproof", version: "0.1.0" } });
     this.send({ jsonrpc: "2.0", method: "notifications/initialized" });
+    return { serverName: String(res?.serverInfo?.name ?? "").slice(0, 100), serverVersion: String(res?.serverInfo?.version ?? "").slice(0, 40), protocol: String(res?.protocolVersion ?? "").slice(0, 20) };
   }
 
   async listTools(): Promise<string[]> {
@@ -96,9 +107,9 @@ export class McpStdioClient {
   }
 
   /** The tools with their descriptions and input schemas, as the server states them. */
-  async describeTools(): Promise<{ name: string; description: string; inputSchema: unknown }[]> {
+  async describeTools(descriptionLimit = 600): Promise<{ name: string; description: string; inputSchema: unknown }[]> {
     const res = await this.request("tools/list", {});
-    return (Array.isArray(res?.tools) ? res.tools : []).slice(0, 200).map((t: any) => ({ name: String(t?.name ?? ""), description: String(t?.description ?? "").slice(0, 600), inputSchema: t?.inputSchema ?? null }));
+    return (Array.isArray(res?.tools) ? res.tools : []).slice(0, 200).map((t: any) => ({ name: String(t?.name ?? ""), description: String(t?.description ?? "").slice(0, descriptionLimit), inputSchema: t?.inputSchema ?? null }));
   }
 
   /** Calls a tool and returns its text content joined; a tool-level error is thrown. */

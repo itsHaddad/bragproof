@@ -1,11 +1,15 @@
 import type { Level } from "../receipt/receipt.ts";
+import { validPackage } from "../report/types.ts";
 import { handleMcp } from "./mcp.ts";
 import type { FeedService } from "./service.ts";
 import { claimPage, workflowFor } from "./web/claim.ts";
 import { aboutPage, llmsTxt, publishPage } from "./web/guides.ts";
-import { homePage } from "./web/home.ts";
+import { claimsPage } from "./web/home.ts";
 import { html } from "./web/layout.ts";
-import { makerPage, notFound, packagePage } from "./web/lists.ts";
+import { makerPage, messagePage, notFound, packagePage } from "./web/lists.ts";
+import { noReportPage, reportHref, reportPage } from "./web/report.ts";
+import { homePage } from "./web/reports-home.ts";
+import { badgeSvg, statePage } from "./web/state.ts";
 
 // Reads may be made from any web page. Writes must say they are JSON, which a web page cannot send to another
 // site without that site's permission, so a page cannot use its visitors to post.
@@ -35,7 +39,16 @@ export function feedHandler(feed: FeedService, opts: { publicOrigin?: string } =
     const path = url.pathname;
     const p = url.searchParams;
     if (req.method === "POST") {
-      if (!(Number(req.headers.get("content-length") ?? 0) <= 100_000)) return json({ error: "body too large" }, 413);
+      if (!(Number(req.headers.get("content-length") ?? 0) <= (path === "/v1/reports" ? 400_000 : 100_000))) return json({ error: "body too large" }, 413);
+      // The one form on the site posts here; it must come from the site's own pages.
+      if (path === "/request") {
+        const from = req.headers.get("origin");
+        if (from && from !== origin) return json({ error: "not from this site" }, 403);
+        const form = await req.formData().catch(() => null);
+        const name = String(form?.get("package") ?? "").trim().toLowerCase().slice(0, 214);
+        const out = await feed.askReport(name, clientAddress);
+        return out.ok ? new Response(null, { status: 303, headers: { location: reportHref(out.package) } }) : html(messagePage("That did not work", out.reason, origin), 422);
+      }
       if (!(req.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return json({ error: "send application/json" }, 415);
     }
 
@@ -52,7 +65,47 @@ export function feedHandler(feed: FeedService, opts: { publicOrigin?: string } =
       if (out.ok) return json(out, out.added ? 201 : 200);
       return json({ error: out.reason }, out.reason.startsWith("too many") ? 429 : 422);
     }
+    if ((path === "/v1/reports" || path === "/v1/requests") && req.method === "POST") {
+      const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+      if (!body || typeof body !== "object") return json({ error: "body is not a JSON object" }, 400);
+      if (path === "/v1/requests") {
+        const out = await feed.askReport(body.package, clientAddress);
+        return out.ok ? json({ ...out, report: origin + "/v1/reports/" + out.package, page: origin + reportHref(out.package) }, out.status === "queued" ? 202 : 200) : json({ error: out.reason }, out.reason.startsWith("too many") ? 429 : 422);
+      }
+      const out = await feed.reports.admit(body.report, body.token);
+      return out.ok ? json(out, 201) : json({ error: out.reason }, 422);
+    }
     if (req.method !== "GET" && req.method !== "HEAD") return json({ error: "not found" }, 404);
+
+    // ---- run reports
+    const show = p.get("show") ?? "";
+    if (path === "/v1/reports") return json({ reports: await feed.reports.list({ q: textOf(p.get("q"), 200), outcome: textOf(p.get("outcome"), 30), contacts: p.get("contacts") === "1", limit: numberOf(p.get("limit"), 3) }) }, 200, cached);
+    if (path.startsWith("/v1/reports/")) {
+      const name = decoded(path.slice(12));
+      if (p.get("raw") === "1") {
+        const raw = await feed.reports.raw(name);
+        return raw ? json(raw, 200, open) : json({ error: "no report on this package" }, 404, open);
+      }
+      const d = await feed.reports.get(name);
+      return d ? json({ report: d.report, summary: d.summary, history: d.history, page: origin + reportHref(name) }, 200, cached) : json({ error: "no report on this package", ask: "POST " + origin + '/v1/requests {"package":"name"}' }, 404, open);
+    }
+    if (path === "/v1/queue") return json({ packages: await feed.reports.queue(numberOf(p.get("limit"), 3)) }, 200, { "cache-control": "no-store" });
+    if (path === "/v1/state") return json(await feed.reports.state(), 200, cached);
+    if (path === "/state") return html(statePage(await feed.reports.state(), origin));
+    if (path.startsWith("/r/")) {
+      const name = decoded(path.slice(3));
+      const d = await feed.reports.get(name);
+      if (d) return html(reportPage(d, await feed.claims({ package: name, limit: 20 }), origin));
+      return validPackage(name) ? html(noReportPage(name, (await feed.reports.queue(100)).includes(name), origin), 404) : html(notFound(origin), 404);
+    }
+    const badge = path.match(/^\/badge\/(.+)\.svg$/);
+    if (badge) return new Response(badgeSvg(await feed.reports.get(decoded(badge[1]!))), { headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=1800", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" } });
+    if (path === "/") {
+      const q = textOf(p.get("q"), 200) ?? "";
+      const filter = show === "started" || show === "needs-setup" || show === "contacts" ? show : "";
+      const [rows, state] = await Promise.all([feed.reports.list({ q, outcome: filter && filter !== "contacts" ? filter : undefined, contacts: filter === "contacts", limit: q || filter ? 60 : 30 }), feed.reports.state()]);
+      return html(homePage({ origin, rows, state, q, filter }));
+    }
 
     // ---- REST for agents
     if (path === "/v1/posts") return json(await feed.search({ q: textOf(p.get("q"), 200), level: levelOf(p.get("level")), pass: p.get("pass") === "any" ? "any" : true, after: numberOf(p.get("after"), 12), limit: numberOf(p.get("limit"), 3) }), 200, open);
@@ -70,12 +123,12 @@ export function feedHandler(feed: FeedService, opts: { publicOrigin?: string } =
     if (path === "/llms.txt") return new Response(llmsTxt(origin), { headers: { "content-type": "text/plain; charset=utf-8" } });
 
     // ---- pages for people
-    if (path === "/") {
-      const all = p.get("show") === "all";
+    if (path === "/claims") {
+      const all = show === "all";
       const q = textOf(p.get("q"), 200) ?? "";
       const tag = textOf(p.get("tag"), 32) ?? "";
       const [claims, stats, tags] = await Promise.all([feed.claims({ q, tag: tag || undefined, level: all ? "any" : undefined, limit: 60 }), feed.stats(), feed.tags()]);
-      return html(homePage({ origin, claims, stats, tags, q, tag, all }));
+      return html(claimsPage({ origin, claims, stats, tags, q, tag, all }));
     }
     if (path === "/publish") return html(publishPage(origin));
     if (path === "/about") return html(aboutPage(origin));

@@ -1,9 +1,12 @@
 #!/usr/bin/env bun
+import { makeReport } from "../check/report.ts";
 import { probeSubject, runCheck } from "../check/run.ts";
 import { FeedDb } from "../feed/db.ts";
 import { feedHandler } from "../feed/server.ts";
 import { FeedService } from "../feed/service.ts";
 import { defaultPolicy, makeReceipt, rank, verifyReceipt } from "../receipt/receipt.ts";
+import { summarize } from "../report/analyze.ts";
+import { verifyReport } from "../report/verify.ts";
 import type { CheckSpec } from "../receipt/types.ts";
 
 const HELP = `bragproof: claims that carry their own proof
@@ -16,6 +19,11 @@ const HELP = `bragproof: claims that carry their own proof
       evidence; --accept-self-reported accepts none at all.
   bragproof probe <package>@<version> [--bin name]
       Install a package and list its tools, without calling any.
+  bragproof report <package>@<version> [--bin name]
+      Install a package, start it with no configuration and print what happened: a run report.
+  bragproof check <package> [--feed https://bragproof.smaverk.com]
+      Fetch a package's run report and verify, without trusting the feed, that the report workflow made it.
+      Exit 0: verified. 2: do not believe it.
   bragproof post <receipt.json> --feed <feed-url>
   bragproof search <words...> --feed <feed-url> [--any]
   bragproof new --feed <feed-url> [--cursor N]
@@ -118,6 +126,26 @@ async function main() {
       console.log("BRAGPROOF-PROBE:" + JSON.stringify({ package: m[1], version: m[2], ok: false, error: String((e as Error).message).slice(0, 300) }));
     }
     return 0;
+  }
+
+  if (cmd === "report") {
+    const m = need(rest[0], "report needs <package>@<version>").match(/^((?:@[^@/]+\/)?[^@/]+)@(\d+\.\d+\.\d+(?:-[\w.]+)?)$/);
+    if (!m) return need(undefined, "report needs <package>@<exact version>");
+    // One marked line, so the report can be picked out of everything else a run prints.
+    console.log("BRAGPROOF-REPORT:" + JSON.stringify(await makeReport(m[1]!, m[2]!, flag(flags, "bin"))));
+    return 0;
+  }
+
+  if (cmd === "check") {
+    const feed = (flag(flags, "feed") ?? "https://bragproof.smaverk.com").replace(/\/$/, "");
+    const raw = (await (await fetch(`${feed}/v1/reports/${need(rest[0], "check needs a package name")}?raw=1`, { signal: AbortSignal.timeout(20_000) })).json()) as { report?: string; token?: string; error?: string };
+    if (typeof raw.report !== "string" || typeof raw.token !== "string") {
+      console.log(JSON.stringify({ ok: false, reason: raw.error ?? "the feed has no report on this package" }, null, 2));
+      return 2;
+    }
+    const verdict = await verifyReport(raw.report, raw.token);
+    console.log(JSON.stringify(verdict.ok ? { ok: true, commit: verdict.commit, run: verdict.report.host?.run, package: verdict.report.package, version: verdict.report.version, ...summarize(verdict.report) } : verdict, null, 2));
+    return verdict.ok ? 0 : 2;
   }
 
   if (cmd === "post") {

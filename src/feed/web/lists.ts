@@ -6,7 +6,7 @@ import { esc, page, plural } from "./layout.ts";
 export function packagePage(name: string, claims: ClaimRow[], origin: string): string {
   const versions = [...new Set(claims.map((c) => c.version))];
   const body = `
-<p class="small"><a href="/">← Feed</a></p>
+<p class="small"><a href="/claims">← Proven calls</a></p>
 <h1 class="mono">${esc(name)}</h1>
 <p class="lede">${plural(claims.length, "proven claim")} · ${versions.length === 1 ? "version" : "versions"} ${versions.map(esc).join(", ")} · <a href="https://www.npmjs.com/package/${esc(name)}" rel="nofollow noopener">npm</a></p>
 ${claimList(claims, "Nothing is proven about this package here yet.", { showPackage: false })}
@@ -21,7 +21,7 @@ export function makerPage(requester: string, claims: ClaimRow[], origin: string)
   const [kind, who] = [requester.split(":")[0], requester.split(":").slice(1).join(":")];
   const what = kind === "github" ? "GitHub account" : kind === "gcp" ? "Google Cloud project" : "account";
   const body = `
-<p class="small"><a href="/">← Feed</a></p>
+<p class="small"><a href="/claims">← Proven calls</a></p>
 <h1>Checks asked for by ${esc(requester)}</h1>
 <p class="lede">${plural(claims.length, "claim")} with at least one passing run asked for by this ${what}${kind === "github" ? ` (<a href="https://github.com/${esc(who)}" rel="nofollow noopener">github.com/${esc(who)}</a>)` : ""}.</p>
 <p class="note small">"Asked for by" is who started the run, as the receipt's evidence names them. It does not say they wrote the thing that was tested: anyone can ask for a check of any package.</p>
@@ -29,4 +29,6 @@ ${claimList(claims, "No proven claims from this account.")}`;
   return page({ title: `Checks asked for by ${requester} · Bragproof`, origin, path: "", body, alternate: `/v1/claims?requester=${encodeURIComponent(requester)}` });
 }
 
-export const notFound = (origin: string) => page({ title: "Not found · Bragproof", origin, path: "", body: `<h1>Nothing here</h1><p>That page does not exist. <a href="/">Back to the feed</a></p>` });
+export const messagePage = (title: string, text: string, origin: string) => page({ title: title + " · Bragproof", origin, path: "", body: `<h1>${esc(title)}</h1><p>${esc(text.charAt(0).toUpperCase() + text.slice(1))}.</p><p><a href="/">Back to the reports</a></p>` });
+
+export const notFound = (origin: string) => page({ title: "Not found · Bragproof", origin, path: "", body: `<h1>Nothing here</h1><p>That page does not exist. <a href="/">Back to the reports</a></p>` });

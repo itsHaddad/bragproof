@@ -23,8 +23,9 @@ export type Started = { client: McpStdioClient; installed: Installed; jailed: bo
  * When the runner is root (in the runner container) the package runs in a jail, as "nobody": it cannot open
  * what the runner can, above all whatever hands out proof tokens. That is proven by a probe before any package
  * code runs; if the proof fails this throws, and no receipt comes out of a run the package could have forged.
- * Outside a container (a developer's machine) there is no jail, and no proof token to protect either. */
-export async function startSubject(subject: Subject): Promise<Started> {
+ * Outside a container (a developer's machine) there is no jail, and no proof token to protect either.
+ * `beforeStart` runs after the install and just before the package's own code first runs. */
+export async function startSubject(subject: Subject, beforeStart?: (jailDir: string | null) => Promise<void>): Promise<Started> {
   const jail = process.getuid?.() === 0 ? await buildJail() : null;
   if (jail) await assertJailHolds(jail, SOCKET);
   const installed = await installSubject(subject, jail?.appDir);
@@ -33,6 +34,7 @@ export async function startSubject(subject: Subject): Promise<Started> {
   const command = jail ? jail.command(installed.entryInDir, args) : ["node", installed.entry, ...args];
   // The subject gets a bare environment: nothing of the runner's own (tokens, keys) is passed on.
   const options = jail ? jailSpawnOptions : { ...jailSpawnOptions, cwd: installed.dir, env: { PATH: process.env.PATH ?? "", HOME: installed.dir } };
+  await beforeStart?.(jail?.dir ?? null);
   const client = new McpStdioClient(command[0]!, command.slice(1), options);
   return {
     client,

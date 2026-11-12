@@ -1,0 +1,112 @@
+name: report
+# Makes run reports: installs each package in the runner's jail on a throwaway GitHub machine, starts it with
+# no configuration, and records what happened. Name lookups and connections are recorded outside the
+# container, where the package cannot hide them. Each report is sent to the feed with a token from GitHub
+# that names this workflow, this commit and the report's hash, so the feed (and anyone else) can tell the
+# report came from this code and was not edited afterwards.
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "'queue' (what people asked the feed for), or a file under tools/ holding a JSON array of package names"
+        default: queue
+      shards:
+        description: how many machines to spread a file over
+        default: "1"
+  schedule:
+    - cron: "*/15 * * * *"
+permissions:
+  contents: read
+concurrency:
+  group: report-${{ github.event_name }}-${{ inputs.source || 'queue' }}
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      todo: ${{ steps.plan.outputs.todo }}
+    steps:
+      - id: plan
+        env:
+          SOURCE: ${{ inputs.source || 'queue' }}
+          SHARDS: ${{ inputs.shards || '1' }}
+        run: |
+          case "$SHARDS" in ''|*[!0-9]*) SHARDS=1;; esac
+          [ "$SHARDS" -ge 1 ] && [ "$SHARDS" -le 40 ] || SHARDS=1
+          todo=yes
+          if [ "$SOURCE" = queue ]; then
+            SHARDS=1
+            n=$(curl -fsS --max-time 20 "https://bragproof.smaverk.com/v1/queue?limit=1" | jq '.packages | length' || echo 0)
+            [ "$n" -gt 0 ] || todo=no
+          fi
+          echo "shards=$(jq -nc --argjson n "$SHARDS" '[range(0; $n)]')" >> "$GITHUB_OUTPUT"
+          echo "todo=$todo" >> "$GITHUB_OUTPUT"
+  run:
+    needs: plan
+    if: needs.plan.outputs.todo == 'yes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Report on each package
+        env:
+          SOURCE: ${{ inputs.source || 'queue' }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ strategy.job-total }}
+          FEED: https://bragproof.smaverk.com
+        run: |
+          if [ "$SOURCE" = queue ]; then
+            curl -fsS --max-time 20 "$FEED/v1/queue?limit=40" | jq -r '.packages[]' > list.txt
+          else
+            echo "$SOURCE" | grep -qE '^[a-z0-9][a-z0-9._-]*\.json$' || { echo "bad source"; exit 1; }
+            jq -r '.[]' "tools/$SOURCE" | awk -v n="$SHARDS" -v s="$SHARD" 'NR % n == s' > list.txt
+          fi
+          wc -l list.txt
+          docker build -q -t runner . >/dev/null
+          command -v tcpdump >/dev/null || sudo apt-get install -y -qq tcpdump >/dev/null
+          empty=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          blank() { jq -nc --arg p "$1" --arg v "$2" --arg t "$(date -u +%FT%TZ)" --arg e "$3" --arg h "$empty" '{v:1,package:$p,version:$v,ranAt:$t,install:{ok:false,error:$e},start:{ok:false},tools:[],toolsHash:$h,wrote:[]}'; }
+          while read -r name; do
+            echo "$name" | grep -qE '^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$' || continue
+            echo "== $name"
+            version=$(curl -fsS --max-time 20 "https://registry.npmjs.org/$name/latest" | jq -r '.version // empty' || true)
+            : > cap.txt
+            if echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9_.]+)?$'; then
+              sudo tcpdump -i docker0 -nn -l -p 'udp dst port 53 or (tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack == 0)' > cap.txt 2>/dev/null &
+              sleep 2
+              line=$(timeout 300 docker run --rm --security-opt no-new-privileges --memory 2g --pids-limit 512 --entrypoint bun runner src/cli/main.ts report "$name@$version" 2>/dev/null </dev/null | grep '^BRAGPROOF-REPORT:' | cut -d: -f2- || true)
+              sleep 1; sudo pkill -x tcpdump || true; sleep 1
+              [ -n "$line" ] || line=$(blank "$name" "$version" "the run did not finish in time")
+            else
+              version=0.0.0
+              line=$(blank "$name" "$version" "no such package on the npm registry")
+            fi
+            names=$({ grep -oE ' (A|AAAA)\? [^ ]+' cap.txt || true; } | awk '{print $2}' | sed 's/\.$//' | sort -u | head -60 | jq -R . | jq -sc .)
+            conns=$({ grep -E 'Flags \[S\]' cap.txt | grep -oE '> [0-9.]+:' || true; } | sed -E 's/> ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+):/\1:\2/' | sort -u | head -60 | jq -R . | jq -sc .)
+            printf '%s' "$line" | jq -cj --argjson names "$names" --argjson conns "$conns" --arg c "$GITHUB_SHA" --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" '. + {network: {names: $names, conns: $conns}, host: {commit: $c, run: $run}}' > report.json
+            hash=$(sha256sum < report.json | cut -d' ' -f1)
+            token=$(curl -fsS --max-time 20 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=bragproof-report:$hash" | jq -r '.value // empty' || true)
+            jq -nc --rawfile r report.json --arg t "$token" '{report: $r, token: $t}' > post.json
+            curl -sS --max-time 30 -X POST -H 'content-type: application/json' --data-binary @post.json "$FEED/v1/reports" | cut -c1-200 || true
+            echo
+            jq -c '{package, version, installed: .install.ok, started: .start.ok, tools: (.tools | length), names: .network.names}' report.json >> summary.jsonl
+            cat report.json >> reports.jsonl; echo >> reports.jsonl
+            cat report.json >> reports.jsonl; echo >> reports.jsonl
+          done < list.txt
+          [ -f summary.jsonl ] && cat summary.jsonl || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: reports-${{ matrix.shard }}
+          path: |
+            summary.jsonl
+            reports.jsonl
+          if-no-files-found: ignore

@@ -44,7 +44,7 @@ export function claimPage(d: ClaimDetail, origin: string): string {
     .join("\n");
   const network = latest.spec.tags?.includes("needs-network") ? `<p class="note small">This check calls a service on the internet. The receipt shows what that service answered on ${day(c.lastPassAt ?? latest.result.finishedAt)}, not what it will answer you.</p>` : "";
   const body = `
-<p class="small"><a href="/">← Feed</a> / <a href="${packageHref(c.package)}">${esc(c.package)}</a></p>
+<p class="small"><a href="/claims">← Proven calls</a> / <a href="${packageHref(c.package)}">${esc(c.package)}</a></p>
 <h1>${esc(c.claim)}</h1>
 <div class="meta">${c.best ? badge(c.best) : ""}<span class="mono">${esc(c.package)}@${esc(c.version)}</span>${s.homepage ? `<a href="${esc(s.homepage)}" rel="nofollow noopener">homepage</a>` : ""}<a href="https://www.npmjs.com/package/${esc(c.package)}/v/${esc(c.version)}" rel="nofollow noopener">npm</a></div>
 <div class="meta">${proofLine(c)}</div>

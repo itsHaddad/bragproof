@@ -2,6 +2,8 @@ import type { Policy } from "../attest/confidential-space.ts";
 import type { JwksSource } from "../attest/jwt.ts";
 import { defaultPolicy, normalForm, verifyReceipt } from "../receipt/receipt.ts";
 import type { Receipt } from "../receipt/types.ts";
+import type { ReportPolicy } from "../report/verify.ts";
+import { type AskOutcome, ReportBook } from "./reports.ts";
 import type { ClaimQuery, ClaimRow, PostRow, Query } from "./sql.ts";
 import type { ClaimDetail, FeedStore, Stats } from "./store.ts";
 
@@ -13,6 +15,9 @@ export type FeedOptions = {
   /** How many self-reported receipts the feed keeps. They cost nothing to make, so a public feed keeps few
    * (or none: 0) and a private one may keep many. Proven receipts are never capped. */
   selfReportedCap?: number;
+  /** Which runs are believed for run reports, and how to tell whether npm has a package (asked before queueing). */
+  reportPolicy?: ReportPolicy;
+  packageExists?: (name: string) => Promise<boolean>;
 };
 
 /** A small limit per sender on publishing, so one sender cannot flood the feed. Reading is never limited. */
@@ -40,12 +45,22 @@ export const senderKey = (address: string) => (address.includes(":") && !address
 export class FeedService {
   private policy: Policy;
   private allow = limiter(20);
+  private allowAsk = limiter(6);
+  /** Run reports and the queue of packages asked for. */
+  readonly reports: ReportBook;
 
   constructor(
     private db: FeedStore,
     private options: FeedOptions = {},
   ) {
     this.policy = options.policy ?? defaultPolicy();
+    this.reports = new ReportBook(db.db, { policy: options.reportPolicy, keys: options.keys, exists: options.packageExists });
+  }
+
+  /** Asks for a report on a package, a few per sender per minute. */
+  async askReport(pkg: unknown, sender = "unknown"): Promise<AskOutcome> {
+    if (!this.allowAsk(senderKey(sender))) return { ok: false, reason: "too many requests from this sender, try again in a minute" };
+    return this.reports.ask(typeof pkg === "string" ? pkg.trim().toLowerCase() : pkg);
   }
 
   async publish(receipt: unknown, sender = "unknown"): Promise<PublishOutcome> {

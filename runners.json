@@ -1,5 +1,5 @@
 {
-  "about": "What verifiers accept by default. 'runners': container images of the bragproof runner, by digest, for hardware-attested runs. 'github': the check workflow and the commits of it that are accepted for runs witnessed by GitHub; each of those commits pins a runner image by digest. Anything found unsound is removed, and receipts made with it stop verifying.",
+  "about": "What verifiers accept by default. 'runners': container images of the bragproof runner, by digest, for hardware-attested runs. 'github': the check workflow and the commits of it that are accepted for runs witnessed by GitHub; each of those commits pins a runner image by digest. Anything found unsound is removed, and receipts made with it stop verifying. reports: the workflow whose runs are believed for run reports.",
   "runners": [
     {
       "digest": "sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5",
@@ -16,5 +16,10 @@
         "image": "sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5"
       }
     ]
+  },
+  "reports": {
+    "repository": "itsHaddad/bragproof",
+    "workflow": "itsHaddad/bragproof/.github/workflows/report.yml",
+    "ref": "refs/heads/main"
   }
 }

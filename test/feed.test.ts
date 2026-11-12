@@ -39,7 +39,7 @@ describe("publishing", () => {
     expect((await get("/v1/posts?level=any")).posts[0].level).toBe("self-reported");
     const html = await (await handle(new Request("http://feed.test/"))).text();
     expect(html).not.toContain("Self-reported");
-    expect(await (await handle(new Request("http://feed.test/?show=all"))).text()).toContain("Self-reported");
+    expect(await (await handle(new Request("http://feed.test/claims?show=all"))).text()).toContain("Self-reported");
   });
 
   test("posting a proven receipt's body first, without the proof, cannot bury it", async () => {
@@ -150,8 +150,8 @@ describe("finding and catching up", () => {
 
 describe("the MCP face", () => {
   test("an agent can publish, search, catch up and fetch the receipt", async () => {
-    expect((await mcp("initialize")).serverInfo.name).toBe("bragproof-feed");
-    expect((await mcp("tools/list")).tools.map((t: any) => t.name)).toEqual(["search", "get_claim", "get_receipt", "whats_new", "publish"]);
+    expect((await mcp("initialize")).serverInfo.name).toBe("bragproof");
+    expect((await mcp("tools/list")).tools.map((t: any) => t.name)).toEqual(["check_package", "find_servers", "request_report", "search", "get_claim", "get_receipt", "whats_new", "publish"]);
     const r = attestedReceipt(attestor);
     expect(await tool("publish", { receipt: r })).toMatchObject({ ok: true, level: "attested", added: true });
     const found = await tool("search", { q: "echo" });
@@ -278,10 +278,10 @@ describe("the pages for people", () => {
     }
   });
 
-  test("the home page leads with getting listed and counts what is proven", async () => {
+  test("the proven calls page counts what is proven", async () => {
     await post("/v1/posts", witnessedReceipt(attestor));
-    const home = (await pageText("/")).html;
-    expect(home).toContain("Get your thing listed");
+    const home = (await pageText("/claims")).html;
+    expect(home).toContain("Add a proven call");
     expect(home).toContain("Proven once");
     expect(home).toContain("by 1 account");
     expect(home).toContain("Witnessed");

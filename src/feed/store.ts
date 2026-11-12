@@ -31,7 +31,7 @@ function storedRequester(receipt: Receipt): string | null {
 
 export class FeedStore {
   private ready: Promise<void> | null = null;
-  constructor(private db: Executor) {}
+  constructor(readonly db: Executor) {}
 
   /** Creates the table, and brings an older feed's table up to date: adds the newer columns and fills them
    * in from the receipts it already holds. */
