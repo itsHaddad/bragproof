@@ -72,9 +72,9 @@ export class ReportBook {
     const stored = (await this.all("SELECT version, outcome, ran_at FROM reports WHERE package = ?", [r.package])) as { version: string; outcome: string; ran_at: string }[];
     const same = stored.find((x) => x.version === r.version);
     // A run that found nothing must not hide one that did: a failed lookup of a package already reported, or a
-    // run that did not finish, where the same version started before. An older run never replaces a newer one,
+    // run that did not finish, where the same version has a real report. An older run never replaces a newer one,
     // so a report and its token cannot be sent again later to undo a fresh report.
-    const keep = (s.outcome === "not-found" && stored.length > 0) || (s.outcome === "timed-out" && same?.outcome === "started") || (same !== undefined && same.ran_at >= r.ranAt);
+    const keep = (s.outcome === "not-found" && stored.length > 0) || (s.outcome === "timed-out" && same !== undefined && same.outcome !== "timed-out") || (same !== undefined && same.ran_at >= r.ranAt);
     if (keep) {
       await done();
       return { ok: true, package: r.package, version: r.version, outcome: s.outcome, kept: false };
@@ -143,15 +143,15 @@ export class ReportBook {
     const last = (await this.all("SELECT max(admitted_at) AS at FROM reports WHERE package = ?", [pkg]))[0]?.at;
     if (typeof last === "string" && Date.now() - Date.parse(last) < 86_400_000) return { ok: true, status: "reported", package: pkg };
     if ((await this.all(`SELECT 1 FROM requests WHERE package = ? AND done_at IS NULL AND tries < ${MAX_TRIES}`, [pkg])).length) return { ok: true, status: "already-queued", package: pkg };
-    if (Number((await this.all("SELECT count(*) AS n FROM requests WHERE done_at IS NULL"))[0]?.n ?? 0) >= 300) return { ok: false, reason: "the queue is full, try again in an hour" };
-    const refusal = this.options.eligible ? await this.options.eligible(pkg) : null;
-    if (refusal) return { ok: false, reason: refusal };
+    if (Number((await this.all(`SELECT count(*) AS n FROM requests WHERE done_at IS NULL AND tries < ${MAX_TRIES}`))[0]?.n ?? 0) >= 300) return { ok: false, reason: "the queue is full, try again in an hour" };
     // A daily allowance per sender, kept in the database so it holds across restarts. The sender is stored
     // only as a hash, and only for counting.
     const who = createHash("sha256").update("asker:" + sender).digest("hex").slice(0, 32);
     const day = new Date().toISOString().slice(0, 10);
     await this.db.run("INSERT INTO askers (who, day, n) VALUES (?, ?, 1) ON CONFLICT (who, day) DO UPDATE SET n = n + 1", [who, day]);
     if (Number((await this.all("SELECT n FROM askers WHERE who = ? AND day = ?", [who, day]))[0]?.n ?? 0) > PER_SENDER_PER_DAY) return { ok: false, reason: "too many requests from this sender today" };
+    const refusal = this.options.eligible ? await this.options.eligible(pkg) : null;
+    if (refusal) return { ok: false, reason: refusal };
     await this.db.run("INSERT INTO requests (package, asked_at, done_at, tries) VALUES (?, ?, NULL, 0) ON CONFLICT (package) DO UPDATE SET asked_at = excluded.asked_at, done_at = NULL, tries = 0", [pkg, new Date().toISOString()]);
     return { ok: true, status: "queued", package: pkg };
   }

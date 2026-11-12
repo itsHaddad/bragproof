@@ -27,7 +27,7 @@ nav{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto;font-size:.95rem}nav a
 main{padding:28px 0 56px}h1{font-size:1.7rem;line-height:1.25;margin:0 0 10px;letter-spacing:-.015em}h2{font-size:1.15rem;margin:36px 0 12px}h3{font-size:1rem;margin:0 0 6px}
 p{margin:0 0 12px}.lede{color:var(--muted);font-size:1.05rem;max-width:62ch}.muted{color:var(--muted)}.small{font-size:.88rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}.stack>*+*{margin-top:12px}
-.claim{display:block;position:relative}.claim h3 a{color:var(--fg);text-decoration:none}.claim h3 a:hover{text-decoration:underline}.claim h3 a::after{content:"";position:absolute;inset:0;border-radius:12px}.claim .meta a{position:relative;z-index:1;padding:10px 0;margin:-10px 0}.claim .meta .mono{font-size:.85rem}
+.claim{display:block;position:relative}.claim h3{overflow-wrap:anywhere}.claim h3 a{color:var(--fg);text-decoration:none}.claim h3 a:hover{text-decoration:underline}.claim h3 a::after{content:"";position:absolute;inset:0;border-radius:12px}.claim .meta a{position:relative;z-index:1;padding:10px 0;margin:-10px 0}.claim .meta .mono{font-size:.85rem}
 .meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;color:var(--muted);font-size:.88rem;margin-top:8px}
 code,pre,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em}code{overflow-wrap:anywhere}
 pre{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-x:auto;margin:0 0 12px;line-height:1.45;white-space:pre}pre.cmd{white-space:pre-wrap;overflow-wrap:anywhere}

@@ -38,7 +38,7 @@ const said = (r: Report) => [r.install.error, r.start.error, r.start.stderr].fil
 export function needsOf(r: Report): string[] {
   if (r.start.ok) return [];
   // Error codes look like settings (SQLITE_CANTOPEN, EAI_AGAIN); a setting has a part that says what it holds.
-  const noise = /^(ERR_|NODE_|UV_|NPM_|SQLITE_|EAI_|E[A-Z]+_|HTTP_|MODULE_NOT_FOUND$|BRAGPROOF_)/;
+  const noise = /^(ERR_|NODE_|UV_|NPM_|SQLITE_|EAI_|HTTP_|MODULE_NOT_FOUND$|BRAGPROOF_)/;
   const part = /(^|_)(KEY|TOKEN|SECRET|URL|URI|ID|PATH|HOST|PORT|USER|USERNAME|PASSWORD|PASS|DSN|ENDPOINT|REGION|PROJECT|ORG|ACCOUNT|EMAIL|DIR|FILE|CONFIG|CREDENTIALS|DATABASE|DB|NAME|ADDRESS|DOMAIN|WORKSPACE|TENANT|API|AUTH|PAT)(_|$)/;
   const found = said(r).match(/\b[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+\b/g) ?? [];
   return [...new Set(found)].filter((n) => !noise.test(n) && part.test(n) && n.length <= 60).slice(0, 8);
