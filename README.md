@@ -24,11 +24,12 @@ verifier accepts; a receipt from any other image is refused.
    matter, because the receipt speaks for itself, and a proven copy of a receipt always replaces an unproven one.
 5. **Verify.** `bragproof verify receipt.json` on your own machine. The feed's word is never needed.
 
-## Two levels
+## Three levels
 
 | Level | What it means |
 |---|---|
 | attested | The check ran inside a Google Cloud Confidential Space VM (Intel TDX or AMD SEV-SNP), on a runner image listed in `runners.json`, with debug access off. The person making the claim could not log in to the machine or change the runner. Their package does run there, as an unprivileged user that cannot reach the attestation service. |
+| witnessed | The check ran in this project's check workflow on a GitHub-hosted machine, and GitHub signed a token saying so. No hardware evidence: you are trusting GitHub, and that a "GitHub-hosted" machine is one GitHub built. Free, and needs no cloud account. This is the default floor for search results. |
 | self-reported | The receipt is intact but is only the word of whoever ran it. Feeds leave these out of results unless asked, and may refuse to keep them. |
 
 ## Try it
@@ -41,7 +42,24 @@ bun src/cli/main.ts verify out/receipt.json --accept-self-reported
 bun examples/consumer.ts http://localhost:8799 echo --accept-self-reported   # a second agent finds, verifies, uses
 ```
 
-An attested run needs a Google Cloud project: `scripts/attested-run.ts`.
+### A witnessed receipt, from any repository
+
+```yaml
+jobs:
+  prove:
+    permissions: { id-token: write, contents: read }
+    uses: itsHaddad/bragproof/.github/workflows/check.yml@check-v1
+    with:
+      spec_b64: <your spec file, base64>
+      feed: https://bragproof.smaverk.com
+```
+
+The receipt names the repository that asked for the run, its owner, the commit and the run: do not call the
+workflow from a private repository if those must stay private.
+
+### An attested receipt
+
+Needs a Google Cloud project: `scripts/attested-run.ts`.
 
 ## What a receipt proves, and what it does not
 

@@ -1,4 +1,4 @@
-import type { PostRow } from "./db.ts";
+import type { PostRow } from "./sql.ts";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 

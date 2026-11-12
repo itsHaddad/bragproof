@@ -8,8 +8,10 @@ export class McpStdioClient {
   private waiting = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   private closed: Error | null = null;
 
-  constructor(command: string, args: string[], opts: { cwd?: string; env?: Record<string, string> } = {}) {
-    this.child = spawn(command, args, { cwd: opts.cwd, env: opts.env, detached: true, stdio: ["pipe", "pipe", "pipe"] });
+  constructor(command: string, args: string[], options: { cwd: string; env: Record<string, string>; detached: boolean; stdio: ["pipe", "pipe", "pipe"] }) {
+    this.child = spawn(command, args, options);
+    // Writing to a subject that has just exited must not take the runner down with it.
+    this.child.stdin.on("error", () => {});
     this.child.stdout.setEncoding("utf8");
     this.child.stdout.on("data", (chunk: string) => this.onData(chunk));
     this.child.stderr.resume();
@@ -93,9 +95,15 @@ export class McpStdioClient {
     return names;
   }
 
+  /** The tools with their descriptions and input schemas, as the server states them. */
+  async describeTools(): Promise<{ name: string; description: string; inputSchema: unknown }[]> {
+    const res = await this.request("tools/list", {});
+    return (Array.isArray(res?.tools) ? res.tools : []).slice(0, 200).map((t: any) => ({ name: String(t?.name ?? ""), description: String(t?.description ?? "").slice(0, 600), inputSchema: t?.inputSchema ?? null }));
+  }
+
   /** Calls a tool and returns its text content joined; a tool-level error is thrown. */
-  async callTool(name: string, args: Record<string, unknown>): Promise<string> {
-    const res = await this.request("tools/call", { name, arguments: args });
+  async callTool(name: string, args: Record<string, unknown>, timeoutMs = 30_000): Promise<string> {
+    const res = await this.request("tools/call", { name, arguments: args }, timeoutMs);
     const text = (Array.isArray(res?.content) ? res.content : [])
       .filter((c: any) => c?.type === "text" && typeof c.text === "string")
       .map((c: any) => c.text)

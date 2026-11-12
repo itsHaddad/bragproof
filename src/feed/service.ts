@@ -2,7 +2,7 @@ import type { Policy } from "../attest/confidential-space.ts";
 import type { JwksSource } from "../attest/jwt.ts";
 import { defaultPolicy, normalForm, verifyReceipt } from "../receipt/receipt.ts";
 import type { Receipt } from "../receipt/types.ts";
-import type { FeedDb, PostRow, Query } from "./db.ts";
+import type { FeedStore, PostRow, Query } from "./sql.ts";
 
 export type PublishOutcome = { ok: true; id: string; level: string; added: boolean } | { ok: false; reason: string };
 
@@ -41,7 +41,7 @@ export class FeedService {
   private allow = limiter(20);
 
   constructor(
-    private db: FeedDb,
+    private db: FeedStore,
     private options: FeedOptions = {},
   ) {
     this.policy = options.policy ?? defaultPolicy();
@@ -59,19 +59,20 @@ export class FeedService {
     const verdict = await verifyReceipt(receipt, this.policy, this.options.keys);
     if (!verdict.ok) return { ok: false, reason: verdict.reason };
     const cap = this.options.selfReportedCap ?? 1000;
-    if (verdict.level === "self-reported" && this.db.count("self-reported") >= cap) return { ok: false, reason: cap === 0 ? "this feed only takes proven receipts (witnessed or attested)" : "this feed holds as many self-reported receipts as it keeps; attested ones are always taken" };
+    if (verdict.level === "self-reported" && (await this.db.count("self-reported")) >= cap) return { ok: false, reason: cap === 0 ? "this feed only takes proven receipts (witnessed or attested)" : "this feed holds as many self-reported receipts as it keeps; attested ones are always taken" };
     // Stored in normal form: only the fields the format defines, so nothing unverified is served alongside.
     const r = normalForm(receipt as Receipt);
-    const stored = this.db.add(r, verdict.level, verdict.facts?.hardware ?? null);
+    // The hardware column is for hardware evidence only; a run GitHub witnessed has none.
+    const stored = await this.db.add(r, verdict.level, verdict.level === "attested" ? (verdict.facts?.hardware ?? null) : null);
     return { ok: true, id: r.bodyHash, level: stored.level, added: stored.added };
   }
 
-  search(query: Query): { posts: PostRow[]; cursor: number } {
-    const posts = this.db.find(query);
+  async search(query: Query): Promise<{ posts: PostRow[]; cursor: number }> {
+    const posts = await this.db.find(query);
     return { posts, cursor: posts.reduce((m, p) => Math.max(m, p.seq), query.after ?? 0) };
   }
 
-  receipt(id: string): Receipt | null {
+  async receipt(id: string): Promise<Receipt | null> {
     return /^[0-9a-f]{64}$/.test(id) ? this.db.receipt(id) : null;
   }
 }

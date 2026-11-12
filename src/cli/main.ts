@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { runCheck } from "../check/run.ts";
+import { probeSubject, runCheck } from "../check/run.ts";
 import { FeedDb } from "../feed/db.ts";
 import { feedHandler } from "../feed/server.ts";
 import { FeedService } from "../feed/service.ts";
@@ -14,6 +14,8 @@ const HELP = `bragproof: claims that carry their own proof
       Check a receipt yourself. Exit 0: proven (witnessed or attested) and the check passed. 1: the check
       failed. 2: do not believe it. 3: weaker proof than asked for. --require attested asks for hardware
       evidence; --accept-self-reported accepts none at all.
+  bragproof probe <package>@<version> [--bin name]
+      Install a package and list its tools, without calling any.
   bragproof post <receipt.json> --feed <feed-url>
   bragproof search <words...> --feed <feed-url> [--any]
   bragproof new --feed <feed-url> [--cursor N]
@@ -53,9 +55,15 @@ async function readJson(source: string): Promise<unknown> {
   return Bun.file(source).json();
 }
 
-async function postReceipt(feed: string, receipt: unknown) {
-  const res = await fetch(feed.replace(/\/$/, "") + "/v1/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(receipt) });
-  return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+/** Posts a receipt to a feed. Never throws: a feed that is down must not change what the check found. */
+async function postReceipt(feed: string, receipt: unknown): Promise<{ status: number; body: string }> {
+  if (!/^https:\/\//.test(feed) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(feed)) return { status: 0, body: "the feed address must be https" };
+  try {
+    const res = await fetch(feed.replace(/\/$/, "") + "/v1/posts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(receipt), signal: AbortSignal.timeout(20_000), redirect: "error" });
+    return { status: res.status, body: (await res.text()).slice(0, 500) };
+  } catch (e) {
+    return { status: 0, body: "the feed did not answer: " + String((e as Error).message).slice(0, 200) };
+  }
 }
 
 async function main() {
@@ -75,7 +83,7 @@ async function main() {
     const feed = flag(flags, "post") ?? process.env.FEED_URL;
     if (feed) {
       const posted = await postReceipt(feed, receipt);
-      console.error(`posted to ${feed}: ${posted.status} ${JSON.stringify(posted.body)}`);
+      console.error(`posted to ${feed}: ${posted.status} ${posted.body}`);
     }
     console.error(`check ${result.pass ? "passed" : "failed"}; evidence: ${receipt.evidence.kind}`);
     // In a job that exists to produce a proven receipt, an unproven one is a failed job.
@@ -92,14 +100,30 @@ async function main() {
     console.log(JSON.stringify(verdict, null, 2));
     if (!verdict.ok) return 2;
     if (!verdict.pass) return 1;
-    const floor = flags["accept-self-reported"] ? 0 : flag(flags, "require") === "attested" ? 2 : 1;
+    // A mistyped or contradictory floor must stop the command, not quietly lower the bar.
+    const require = flags.require;
+    if (require !== undefined && require !== "attested" && require !== "witnessed") need(undefined, "--require takes attested or witnessed");
+    if (require !== undefined && flags["accept-self-reported"]) need(undefined, "--require and --accept-self-reported contradict each other");
+    const floor = flags["accept-self-reported"] ? 0 : require === "attested" ? 2 : 1;
     return rank(verdict.level) >= floor ? 0 : 3;
+  }
+
+  if (cmd === "probe") {
+    // Lists a package's tools without calling any: the starting point for writing a spec.
+    const m = need(rest[0], "probe needs <package>@<version>").match(/^((?:@[^@/]+\/)?[^@/]+)@(\d+\.\d+\.\d+(?:-[\w.]+)?)$/);
+    if (!m) return need(undefined, "probe needs <package>@<exact version>");
+    try {
+      console.log("BRAGPROOF-PROBE:" + JSON.stringify({ package: m[1], version: m[2], ok: true, ...(await probeSubject({ kind: "mcp-stdio", name: m[1]!, package: m[1]!, version: m[2]!, bin: flag(flags, "bin") })) }));
+    } catch (e) {
+      console.log("BRAGPROOF-PROBE:" + JSON.stringify({ package: m[1], version: m[2], ok: false, error: String((e as Error).message).slice(0, 300) }));
+    }
+    return 0;
   }
 
   if (cmd === "post") {
     const posted = await postReceipt(need(flag(flags, "feed"), "post needs --feed"), await readJson(need(rest[0], "post needs a receipt file")));
-    console.log(JSON.stringify(posted.body, null, 2));
-    return posted.status < 300 ? 0 : 2;
+    console.log(posted.body);
+    return posted.status >= 200 && posted.status < 300 ? 0 : 2;
   }
 
   if (cmd === "search" || cmd === "new") {

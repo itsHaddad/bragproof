@@ -11,7 +11,12 @@ name: check
 #         spec_b64: <your spec file, base64>
 #
 # What makes the receipt worth something: the token GitHub signs names THIS file and the commit it was read
-# from, and this file starts one pinned runner image and nothing else. The caller supplies the spec only.
+# from, and this file starts one runner image, pinned by digest, and nothing else. The caller supplies the
+# spec only. Rule for this file: no `uses:` steps at all, and nothing that is not fixed by the commit, because
+# every step of this job could ask GitHub for a token.
+#
+# The receipt names the calling repository, its owner, the commit and the run. Do not call this from a private
+# repository if those must stay private.
 on:
   workflow_call:
     inputs:
@@ -20,17 +25,23 @@ on:
         required: true
         type: string
       feed:
-        description: A feed to publish the receipt to. Empty for none.
+        description: A feed (https) to publish the receipt to. Empty for none.
         required: false
         type: string
         default: ""
+    outputs:
+      receipt_b64:
+        description: The receipt (JSON), base64 encoded. Empty when the run produced none.
+        value: ${{ jobs.run.outputs.receipt_b64 }}
 permissions:
   id-token: write
   contents: read
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    outputs:
+      receipt_b64: ${{ steps.run.outputs.receipt_b64 }}
     env:
       # The runner image, by digest. Changing this line changes which commits of this file verifiers accept.
       RUNNER_IMAGE: ghcr.io/itshaddad/bragproof-runner@sha256:0000000000000000000000000000000000000000000000000000000000000000
@@ -39,22 +50,15 @@ jobs:
       BRAGPROOF_REQUIRE_EVIDENCE: "1"
     steps:
       - name: Run the check in the pinned runner
+        id: run
         run: |
           set -o pipefail
-          docker run --rm \
+          status=0
+          docker run --rm --security-opt no-new-privileges \
             -e CHECK_SPEC_B64 -e FEED_URL -e BRAGPROOF_REQUIRE_EVIDENCE \
             -e ACTIONS_ID_TOKEN_REQUEST_URL -e ACTIONS_ID_TOKEN_REQUEST_TOKEN \
-            "$RUNNER_IMAGE" | tee run.out
-      - name: Keep the receipt
-        id: keep
-        if: always()
-        run: |
-          grep -o 'BRAGPROOF-RECEIPT:[A-Za-z0-9+/=]*' run.out | tail -1 | cut -d: -f2 | base64 -d > receipt.json || true
-          test -s receipt.json && head -c 400 receipt.json || echo "no receipt"
-          echo "id=$(sha256sum run.out | cut -c1-16)" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: receipt-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.job }}-${{ hashFiles('receipt.json') }}
-          path: receipt.json
-          if-no-files-found: ignore
+            "$RUNNER_IMAGE" > run.out || status=$?
+          receipt=$(grep -o '^BRAGPROOF-RECEIPT:[A-Za-z0-9+/=]*$' run.out | tail -1 | cut -d: -f2)
+          echo "receipt_b64=$receipt" >> "$GITHUB_OUTPUT"
+          if [ -n "$receipt" ]; then echo "$receipt" | base64 -d | head -c 600; echo; else echo "no receipt"; fi
+          exit $status

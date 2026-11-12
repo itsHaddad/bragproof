@@ -42,10 +42,10 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.
 
 async function callTool(feed: FeedService, name: string, a: Record<string, any>, sender: string) {
   const level = a.level === "attested" || a.level === "witnessed" || a.level === "self-reported" || a.level === "any" ? a.level : undefined;
-  if (name === "search") return text(feed.search({ q: str(a.q), level, pass: a.include_failed === true ? "any" : true, limit: num(a.limit) }));
-  if (name === "whats_new") return text(feed.search({ q: str(a.q), after: Math.max(num(a.cursor) ?? 0, 0), limit: num(a.limit) }));
+  if (name === "search") return text(await feed.search({ q: str(a.q), level, pass: a.include_failed === true ? "any" : true, limit: num(a.limit) }));
+  if (name === "whats_new") return text(await feed.search({ q: str(a.q), after: Math.max(num(a.cursor) ?? 0, 0), limit: num(a.limit) }));
   if (name === "get_receipt") {
-    const receipt = feed.receipt(String(a.id ?? ""));
+    const receipt = await feed.receipt(String(a.id ?? ""));
     return receipt ? text({ receipt }) : text({ error: "no post with this id" }, true);
   }
   if (name === "publish") {

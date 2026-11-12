@@ -98,6 +98,21 @@ describe("publishing", () => {
   });
 });
 
+describe("a store that answers later (as Cloudflare D1 does)", () => {
+  test("the cap, the stored level and search all work", async () => {
+    const local = new FeedDb(":memory:");
+    const later = { count: async (l: any) => local.count(l), add: async (r: any, l: any, h: any) => local.add(r, l, h), find: async (q: any) => local.find(q), receipt: async (id: string) => local.receipt(id) };
+    const strict = feedHandler(new FeedService(later, { policy, keys: attestor.keys, selfReportedCap: 0 }));
+    const send = (body: unknown) => strict(new Request("http://feed.test/v1/posts", { method: "POST", body: JSON.stringify(body) }), "3.3.3.3");
+    expect((await send(selfReported())).status).toBe(422);
+    const w = witnessedReceipt(attestor);
+    expect(await (await send(w)).json()).toMatchObject({ level: "witnessed", added: true });
+    const found = (await (await strict(new Request("http://feed.test/v1/posts?q=echo"))).json()) as any;
+    expect(found).toMatchObject({ cursor: 1, posts: [{ level: "witnessed", hardware: null }] });
+    expect(((await (await strict(new Request("http://feed.test/v1/posts/" + w.bodyHash))).json()) as any).bodyHash).toBe(w.bodyHash);
+  });
+});
+
 describe("finding and catching up", () => {
   test("search needs every word; the cursor returns only what is new", async () => {
     await post("/v1/posts", attestedReceipt(attestor));

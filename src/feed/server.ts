@@ -24,7 +24,7 @@ export function feedHandler(feed: FeedService, opts: { publicOrigin?: string } =
       const after = p.get("after");
       const limit = p.get("limit");
       return json(
-        feed.search({
+        await feed.search({
           q: p.get("q") ?? undefined,
           level: level === "any" || level === "attested" || level === "witnessed" || level === "self-reported" ? (level as Level | "any") : undefined,
           pass: p.get("pass") === "any" ? "any" : true,
@@ -48,13 +48,13 @@ export function feedHandler(feed: FeedService, opts: { publicOrigin?: string } =
     }
     const one = path.match(/^\/v1\/posts\/([0-9a-f]{64})$/);
     if (one && req.method === "GET") {
-      const receipt = feed.receipt(one[1]!);
+      const receipt = await feed.receipt(one[1]!);
       return receipt ? json(receipt, 200, open) : json({ error: "no post with this id" }, 404, open);
     }
     if (path === "/llms.txt") return new Response(llmsTxt(origin), { headers: { "content-type": "text/plain; charset=utf-8" } });
     if (path === "/" && req.method === "GET") {
       const all = url.searchParams.get("show") === "all";
-      const posts = feed.search(all ? { level: "any", pass: "any", limit: 50 } : { limit: 50 }).posts;
+      const posts = (await feed.search(all ? { level: "any", pass: "any", limit: 50 } : { limit: 50 })).posts;
       return new Response(renderPage(posts, origin, all), {
         headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" },
       });

@@ -9,7 +9,8 @@ export type Installed = { dir: string; entry: string; entryInDir: string; integr
 
 const run = (cmd: string, args: string[], cwd: string) =>
   new Promise<void>((resolve, reject) => {
-    execFile(cmd, args, { cwd, timeout: 180_000, maxBuffer: 8 << 20 }, (err, _out, stderr) => (err ? reject(new Error(`${cmd} failed: ${String(stderr).slice(-400)}`)) : resolve()));
+    // npm runs with nothing of the runner's environment: no request tokens, no keys.
+    execFile(cmd, args, { cwd, timeout: 180_000, maxBuffer: 8 << 20, env: { PATH: process.env.PATH ?? "", HOME: cwd, npm_config_update_notifier: "false" } }, (err, _out, stderr) => (err ? reject(new Error(`${cmd} failed: ${String(stderr).slice(-400)}`)) : resolve()));
   });
 
 /** Installs exactly `package@version` into a fresh folder, without running install scripts, and reports the
@@ -22,6 +23,12 @@ export async function installSubject(subject: Subject, into?: string): Promise<I
     await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--save-exact", `${subject.package}@${subject.version}`], dir);
     const lockText = await readFile(join(dir, "package-lock.json"), "utf8");
     const lock = JSON.parse(lockText);
+    // Everything installed must be a registry tarball with an integrity hash: no git, file or URL dependencies,
+    // which are fetched and built in ways the install flags do not cover.
+    for (const [path, meta] of Object.entries((lock?.packages ?? {}) as Record<string, { resolved?: string; integrity?: string; link?: boolean }>)) {
+      if (!path) continue;
+      if (meta.link || typeof meta.resolved !== "string" || !meta.resolved.startsWith("https://registry.npmjs.org/") || !meta.integrity) throw new Error("a dependency does not come from the npm registry: " + path.slice(0, 120));
+    }
     const entryMeta = lock?.packages?.["node_modules/" + subject.package];
     if (!entryMeta?.integrity || entryMeta.version !== subject.version) throw new Error("the lockfile does not list the package at the asked version");
     const pkg = JSON.parse(await readFile(join(dir, "node_modules", subject.package, "package.json"), "utf8"));
