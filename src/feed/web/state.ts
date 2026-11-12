@@ -36,7 +36,7 @@ ${list(s.needs, "Nothing recorded yet.")}
 
 <h2>How this is measured</h2>
 <ul>
-<li>Each server is the newest version on npm, installed from the registry without running install scripts, on Linux x64 with Node 22.</li>
+<li>Each server is the newest version on npm, installed from the registry without running install scripts, on Linux x64 with Node 24.</li>
 <li>It is started with no arguments, no environment and no input, as an unprivileged user in a sandbox, on a machine that is thrown away afterwards.</li>
 <li>"Starts" means it answered the two requests every client sends first: <code>initialize</code> and <code>tools/list</code>.</li>
 ${s.leftOut ? `<li>${s.leftOut} packages that turned out to have no start command (libraries and kits, not servers) are left out of every number here.</li>` : ""}

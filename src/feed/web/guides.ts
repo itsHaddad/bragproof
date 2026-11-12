@@ -93,7 +93,7 @@ export function aboutPage(origin: string): string {
 <li><b>That it is safe.</b> The wording rules are simple patterns. A clean report is not a security review.</li>
 <li><b>That it is good.</b> Starting is the lowest bar there is.</li>
 <li><b>Anything about tomorrow.</b> A report is about one version on one day. New versions need new reports.</li>
-<li><b>How it behaves elsewhere.</b> One machine: Linux x64, Node 22, install scripts not run.</li>
+<li><b>How it behaves elsewhere.</b> One machine: Linux x64, Node 24, install scripts not run, and a sandbox that holds Node and little else: a server that needs another program (Python, Java, tar, a browser) will not find it there.</li>
 </ul>
 <p>"Needs setup" is not a fault. Many good servers need a key. It is there so you know before you try.</p>
 

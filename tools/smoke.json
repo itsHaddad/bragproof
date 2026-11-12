@@ -1,1 +1,1 @@
-["@odgrim/mcp-datetime","@cloudbase/cloudbase-mcp","@modelcontextprotocol/server-github","mcp-fetch-server","@johnymontana/neo4j-mcp","@modelcontextprotocol/server-memory","this-package-does-not-exist-xyz123","@upstash/context7-mcp"]
+["@cyanheads/pubmed-mcp-server","nido-mcp","@odgrim/mcp-datetime","@cloudbase/cloudbase-mcp","@tanstack/ai-mcp"]

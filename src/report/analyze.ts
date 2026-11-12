@@ -10,7 +10,7 @@ export const outcomeLabel: Record<Outcome, string> = {
   "needs-setup": "Needs setup before it starts",
   "needs-service": "Needs another program or service running",
   "needs-build": "Needs a build step at install",
-  "wrong-platform": "Not for Linux x64",
+  "wrong-platform": "Not for this machine",
   "no-start-command": "No clear start command",
   "not-found": "Not on the npm registry",
   "timed-out": "Run did not finish",
@@ -22,9 +22,9 @@ export const outcomeLabel: Record<Outcome, string> = {
 export const outcomeHint: Record<Outcome, string> = {
   started: "Installed, started with no arguments, no environment and no input, and listed its tools.",
   "needs-setup": "It exited or refused to answer until it is given configuration, such as a key or an argument.",
-  "needs-service": "It tried to reach a program or service that was not there.",
+  "needs-service": "It tried to run or reach a program or service that is not in the runner's sandbox, which holds Node and little else.",
   "needs-build": "It needs code that is built by install scripts, which this runner does not run.",
-  "wrong-platform": "The package says it does not support Linux on x64.",
+  "wrong-platform": "The package says it does not support the runner's machine: Linux on x64 with Node 24.",
   "no-start-command": "The package has no bin, or several with none that is clearly the server.",
   "not-found": "No package of this name is published on npm.",
   "timed-out": "The run produced no report: it did not answer within the time allowed, or what it produced could not be kept.",
@@ -55,6 +55,9 @@ export function outcomeOf(r: Report): Outcome {
   }
   if (r.start.ok) return "started";
   if (/Cannot find module '[^']*\.node'|ERR_DLOPEN_FAILED|Could not locate the bindings file|was compiled against a different Node/.test(text)) return "needs-build";
+  // Before "needs setup": a missing program or an unsupported machine also prints words like "required".
+  if (/spawn(Sync)? \S+ ENOENT|command not found|(Java|Python|Docker|uv|uvx|dotnet|CoreCLR)\b[^\n]{0,40}(not found|not installed|is required)|binary not found/i.test(text)) return "needs-service";
+  if (/requires Node(\.js)? ?(>=|v?\d)|upgrade Node\.js|Windows only|runs on Windows|platform \([^)]*\) is not supported|not supported on linux/i.test(text)) return "wrong-platform";
   if (needsOf(r).length || /\b(required|is missing|missing required|must be (set|provided)|not set|please (set|provide)|no api key|usage:)/i.test(text)) return "needs-setup";
   if (/ECONNREFUSED|spawn \S+ ENOENT|command not found|not installed|could not connect|failed to connect|connection refused/i.test(text)) return "needs-service";
   if (/timed out/.test(r.start.error ?? "")) return "timed-out";

@@ -267,3 +267,12 @@ describe("finding a server", () => {
     expect(found).toEqual(["sqlite-mcp", "notes-mcp", "everything-mcp"]);
   });
 });
+
+test("a missing program or an unsupported machine is not called a need for setup", () => {
+  const failedWith = (stderr: string): Report => ({ v: 1, package: "x-mcp", version: "1.0.0", ranAt: new Date().toISOString(), install: { ok: true }, start: { ok: false, error: "server exited with code 1", stderr }, tools: [], toolsHash: "a".repeat(64), wrote: [] });
+  expect(outcomeOf(failedWith("nido: tar is required to extract Nido: spawnSync tar ENOENT"))).toBe("needs-service");
+  expect(outcomeOf(failedWith("[javalens] Error: Java not found. Install Java 21 or later."))).toBe("needs-service");
+  expect(outcomeOf(failedWith("@acme/core requires Node.js >=26.0.0, but this server is running Node.js 24.22.2"))).toBe("wrong-platform");
+  expect(outcomeOf(failedWith("excel-mcp: ExcelMcp is Windows only."))).toBe("wrong-platform");
+  expect(outcomeOf(failedWith("Error: EXAMPLE_API_KEY is required"))).toBe("needs-setup");
+});

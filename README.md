@@ -119,7 +119,8 @@ token's `aud`. What you end up trusting is GitHub and code you can read.
 - **That it is good.** Starting is the lowest bar there is.
 - **Anything about tomorrow.** A report covers one version on one day. The standing list is run again every
   week; anyone can ask for a fresh report after a day.
-- **How it behaves elsewhere.** One machine: Linux x64, Node 22, install scripts not run. A package can tell
+- **How it behaves elsewhere.** One machine: Linux x64, Node 24, install scripts not run, in a sandbox that holds Node and
+  little else, so a server that needs another program (Python, Java, a browser) will not find it. A package can tell
   it is being watched and behave differently.
 - **"Needs setup" is not a fault.** Many good servers need a key. The report says so before you try.
 
