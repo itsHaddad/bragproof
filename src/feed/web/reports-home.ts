@@ -20,7 +20,7 @@ export function homePage(o: { origin: string; rows: ReportRow[]; state: State; q
     ? ""
     : `
 <h1>Know what an MCP server does before you run it.</h1>
-<p class="lede">Bragproof installs each server on a throwaway machine, starts it with nothing, and publishes what happened: whether it starts, what it asks for, what it contacts, and what its tools tell an agent. Every report can be checked against the public run that made it.</p>
+<p class="lede">We install each MCP server on a throwaway machine, start it with nothing, and publish what happened: does it start, what does it need, what does it contact. Every report links to the public run that made it.</p>
 <div class="facts">
 <div class="fact"><b>${o.state.total}</b><span>servers reported</span></div>
 <div class="fact"><b>${pct(started, o.state.total)}</b><span>start with no setup</span></div>
@@ -32,7 +32,7 @@ export function homePage(o: { origin: string; rows: ReportRow[]; state: State; q
   const heading = filtered ? `${o.rows.length >= 60 ? "First 60 reports" : plural(o.rows.length, "report")}${o.q ? ` matching "${esc(o.q)}"` : ""} <a class="small" href="/">clear</a>` : "Latest runs";
   const body = `${intro}
 <form class="search" method="get" action="/#results" role="search">
-<input type="search" name="q" value="${esc(o.q)}" placeholder="sqlite, time zone, or a package name" aria-label="Search reports">
+<input type="search" name="q" value="${esc(o.q)}" placeholder="sqlite, time zone…" aria-label="Search reports">
 <button type="submit">Search</button>
 </form>
 <div class="chips" aria-label="Filter">${chips.map(([v, label]) => `<a class="chip" href="/?${o.q ? "q=" + encodeURIComponent(o.q) + "&" : ""}show=${v}#results"${o.filter === v ? ' aria-current="true"' : ""}>${label}</a>`).join("")}</div>

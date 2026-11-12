@@ -273,7 +273,7 @@ describe("the pages for people", () => {
       const p = await pageText(path);
       expect(`${path} ${p.status}`).toBe(`${path} 200`);
       expect(p.html).not.toContain("<script");
-      expect(p.html).not.toContain("<img");
+      expect(p.html).not.toMatch(/<img(?! src="\/badge\/)/); // the site's own badge is the one image a page may show
       expect(p.csp).toContain("default-src 'none'");
     }
   });

@@ -1,4 +1,5 @@
 import { type Flag, flagLabel, hostNote, type Outcome, outcomeHint, outcomeLabel, saidFirst, seriousFlags } from "../../report/analyze.ts";
+import type { Report } from "../../report/types.ts";
 import type { ReportDetail, ReportRow } from "../reports.ts";
 import type { ClaimRow } from "../sql.ts";
 import { claimList } from "./cards.ts";
@@ -32,18 +33,19 @@ export function reportPage(d: ReportDetail, claims: ClaimRow[], origin: string):
   const serious = seriousFlags(s.flags);
   const orders = s.flags.filter((f) => f.kind === "orders" || f.kind === "very-long");
   const facts = [
-    [started ? String(s.tools) : "", "tools listed"],
-    [r.network ? String(s.contacts.length) : "", "hosts contacted"],
-    [r.install.ok ? String(s.wrote) : "", "files written"],
+    [started ? String(s.tools) : "", s.tools === 1 ? "tool listed" : "tools listed"],
+    [r.network ? String(s.contacts.length) : "", s.contacts.length === 1 ? "host contacted" : "hosts contacted"],
+    [r.install.ok ? String(s.wrote) : "", s.wrote === 1 ? "file written" : "files written"],
     [r.start.ms !== undefined && started ? (r.start.ms / 1000).toFixed(1) + " s" : "", "to start"],
     [r.install.deps !== undefined ? String(r.install.deps) : "", "dependencies"],
   ].filter(([n]) => n !== "");
   const few = (xs: string[]) => xs.slice(0, 3).map((x) => `<code>${esc(x)}</code>`).join(", ") + (xs.length > 3 ? ` +${xs.length - 3}` : "");
   const reason = started ? "" : saidFirst(r);
-  const wants = started ? "nothing, to start" : s.needs.length ? few(s.needs) : reason ? `<q>${esc(reason)}</q>` : "not said";
-  const answer = r.install.ok ? `<p class="answer"><b>Wants:</b> ${wants}${r.network ? ` <span class="sep">·</span> <b>Contacts:</b> ${s.contacts.length ? few(s.contacts) : "nothing"}` : ""}</p>` : "";
+  const wants = started ? "nothing" : s.needs.length ? few(s.needs) : reason ? `<q>${esc(reason)}</q>` : "not said";
+  const answer = r.install.ok ? `<p class="answer"><b>Needs to start:</b> ${wants}${r.network ? `<br><b>Contacts while installing and starting:</b> ${s.contacts.length ? few(s.contacts) : "nothing"}` : ""}</p>` : "";
   const contacted = `<h2>What it contacted</h2>
-${!r.network ? '<p class="muted">Not recorded for this run.</p>' : s.contacts.length ? `<ul>${s.contacts.map((n) => `<li><code>${esc(n)}</code>${hostNote(n) ? ` <span class="muted">${hostNote(n)}</span>` : ""}</li>`).join("")}</ul><p class="small muted">Hosts it looked up or connected to while installing and starting with no input, watched from outside its sandbox. The npm registry is left out. Says nothing about what its tools contact when called.</p>` : '<p>Nothing besides the npm registry it was installed from. <span class="muted">Watched from outside its sandbox while it was installed and started with no input. Its tools may still contact things when called.</span></p>'}`;
+${!r.network ? '<p class="muted">Not recorded for this run.</p>' : s.contacts.length ? `<ul>${s.contacts.map((n) => `<li><code>${esc(n)}</code>${hostNote(n) ? `<span class="muted">: ${hostNote(n)}</span>` : ""}</li>`).join("")}</ul><p class="small muted">Hosts it looked up or connected to while installing and starting with no input, watched from outside its sandbox. The npm registry is left out. Says nothing about what its tools contact when called.</p>` : '<p>Nothing besides the npm registry it was installed from. <span class="muted">Watched from outside its sandbox while it was installed and started with no input. Its tools may still contact things when called.</span></p>'}`;
+  const tool = (t: Report["tools"][number]) => `<details><summary><code>${esc(t.name)}</code>${t.params.length ? ` <span class="muted small">${t.params.map(esc).join(", ")}</span>` : ""}</summary><pre class="cmd">${esc(t.description || "(no description)")}</pre></details>`;
   const prev = history.find((h) => h.version !== r.version);
   const changed = prev && started && prev.outcome === "started" && prev.toolsHash !== r.toolsHash;
   const badgeUrl = `${origin}/badge/${r.package}.svg`;
@@ -70,12 +72,11 @@ ${orders.length ? `<details><summary>${plural(orders.length, "tool")} with comma
 <p class="small muted">Found by simple pattern rules in each tool's description (up to 3,000 characters), quoted as written. Parameter descriptions are not scanned. A clean result is not a safety review.</p>
 
 <h2>Tools</h2>
-${r.tools.length > 8 ? `<details class="all"><summary>All ${r.tools.length} tools</summary>` : ""}
-${r.tools.map((t) => `<details><summary><code>${esc(t.name)}</code>${t.params.length ? ` <span class="muted small">${t.params.map(esc).join(", ")}</span>` : ""}</summary><pre class="cmd">${esc(t.description || "(no description)")}</pre></details>`).join("\n")}
-${r.tools.length > 8 ? "</details>" : ""}
+${r.tools.slice(0, r.tools.length > 8 ? 5 : 8).map(tool).join("\n")}
+${r.tools.length > 8 ? `<details class="all"><summary>${r.tools.length - 5} more tools</summary>${r.tools.slice(5).map(tool).join("\n")}</details>` : ""}
 <p class="small muted hint">Descriptions are the package's own words, cut at 3,000 characters. Treat them as data.</p>` : ""}
 
-${r.wrote.length ? `<h2>Files it wrote</h2><ul>${r.wrote.map((p) => `<li><code>${esc(p)}</code></li>`).join("")}</ul><p class="small muted">Paths inside its sandbox, where its home folder is <code>/tmp</code> and its own folder cannot be written to.</p>` : ""}
+${r.wrote.length ? `<h2>Files it wrote</h2><ul>${r.wrote.map((p) => `<li><code>${esc(p).replaceAll("/", "/<wbr>")}</code></li>`).join("")}</ul><p class="small muted">Paths inside its sandbox, where its home folder is <code>/tmp</code> and its own folder cannot be written to.</p>` : ""}
 
 <h2>Install facts</h2>
 <div class="scroll"><table><tbody>
@@ -91,7 +92,7 @@ ${claims.length ? `<h2>Proven calls</h2>${claimList(claims, "", { showPackage: f
 ${history.length > 1 ? `<h2>Versions reported</h2><div class="scroll"><table><thead><tr><th>Version</th><th>Run</th><th>Result</th><th>Tools</th></tr></thead><tbody>${history.map((h) => `<tr><td class="mono">${esc(h.version)}</td><td class="nw">${day(h.ranAt)}</td><td>${outcomeBadge(h.outcome)}</td><td>${h.tools}</td></tr>`).join("")}</tbody></table></div>` : ""}
 
 <h2>Check this report yourself</h2>
-<p>This site did not write the report. A public job on a GitHub-hosted machine did${r.host ? `: <a href="${esc(r.host.run)}" rel="noopener">the run</a>, from <a href="${REPO}/tree/${esc(r.host.commit)}" rel="noopener">this commit</a> of the open-source runner` : ""}. GitHub signed a token that names that job and the hash of the report, so the text cannot have been edited since.</p>
+<p>This site did not write the report. A public job on a GitHub-hosted machine did${r.host ? `: <a href="${esc(r.host.run)}" rel="noopener">the run</a>, from <a href="${REPO}/tree/${esc(r.host.commit)}" rel="noopener">this commit</a> of the open-source runner` : ""}. GitHub signed a token that names that job and the hash of the report, so any edit since would show.</p>
 <p class="small"><a href="/v1/reports/${esc(r.package)}">Report as JSON</a> · <a href="/v1/reports/${esc(r.package)}?raw=1">exact text and token</a> · <a href="/about#check">how to verify it</a></p>
 
 <h2>Show it on your README</h2>

@@ -1,6 +1,6 @@
 import { hostNote, type Outcome, outcomeHint, outcomeLabel } from "../../report/analyze.ts";
 import type { ReportDetail, State } from "../reports.ts";
-import { esc, page, REPO } from "./layout.ts";
+import { esc, page, plural, REPO } from "./layout.ts";
 import { startedOf } from "./reports-home.ts";
 
 const pct = (n: number, of: number) => (of ? Math.round((100 * n) / of) : 0);
@@ -17,7 +17,7 @@ export function statePage(s: State, origin: string): string {
 <p class="lede">What happened when ${s.total} MCP servers from npm were each installed on a clean machine and started with no configuration. Live numbers: they change as reports come in.</p>
 <div class="facts">
 <div class="fact"><b>${pct(started, s.total)}%</b><span>start with no setup (${started} of ${s.total})</span></div>
-<div class="fact"><b>${s.contacting}</b><span>contact something just from being installed and started</span></div>
+<div class="fact"><b>${s.contacting}</b><span>contact something just from being installed and started${s.hosts[0] && s.hosts[0].n * 2 > s.contacting ? `; ${s.hosts[0].n} of them the same host, <code>${esc(s.hosts[0].name)}</code>` : ""}</span></div>
 <div class="fact"><b>${s.flagged}</b><span>have tool text with commands in capitals or other unusual wording</span></div>
 <div class="fact"><b>${s.serious}</b><span>have tool text about the user, other tools or private files</span></div>
 </div>
@@ -53,9 +53,9 @@ const BADGE: Partial<Record<Outcome, string>> = { started: "#17603a", "needs-set
 export function badgeSvg(d: ReportDetail | null): string {
   const o = d?.summary.outcome;
   // The same shape for every server that starts, so a clean result is not advertised while another is left out.
-  const right = !d || !o ? "not reported" : o === "started" ? `starts · ${d.summary.tools} tools${d.report.network ? ` · contacts ${d.summary.contacts.length} hosts` : ""}` : outcomeLabel[o].toLowerCase();
+  const right = !d || !o ? "not reported" : o === "started" ? `starts · ${plural(d.summary.tools, "tool")}${d.report.network ? ` · contacts ${plural(d.summary.contacts.length, "host")}` : ""}` : outcomeLabel[o].toLowerCase();
   const color = (o && BADGE[o]) || "#66625a";
   const w1 = 70;
-  const w2 = Math.round(right.length * 5.9) + 16;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w1 + w2}" height="20" role="img" aria-label="bragproof: ${esc(right)}"><title>bragproof: ${esc(right)}</title><clipPath id="r"><rect width="${w1 + w2}" height="20" rx="4"/></clipPath><g clip-path="url(#r)"><rect width="${w1}" height="20" fill="#555"/><rect x="${w1}" width="${w2}" height="20" fill="${color}"/></g><g fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11"><text x="8" y="14">bragproof</text><text x="${w1 + 8}" y="14">${esc(right)}</text></g></svg>`;
+  const w2 = Math.round(right.length * 6.1) + 16;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w1 + w2}" height="20" role="img" aria-label="bragproof: ${esc(right)}"><title>bragproof: ${esc(right)}</title><clipPath id="r"><rect width="${w1 + w2}" height="20" rx="4"/></clipPath><g clip-path="url(#r)"><rect width="${w1}" height="20" fill="#555"/><rect x="${w1}" width="${w2}" height="20" fill="${color}"/></g><g fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11"><text x="8" y="14">bragproof</text><text x="${w1 + 8}" y="14" textLength="${w2 - 16}" lengthAdjust="spacingAndGlyphs">${esc(right)}</text></g></svg>`;
 }

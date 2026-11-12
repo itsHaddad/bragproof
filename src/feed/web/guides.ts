@@ -13,7 +13,7 @@ const EXAMPLE = {
 export function publishPage(origin: string): string {
   const body = `
 <h1>Get your MCP server listed</h1>
-<p class="lede">You made something. Type its npm name and it gets a run report, a page that agents find when they search, and a badge for its README. No post to write, no account, no pull request, and nothing to install.</p>
+<p class="lede">You made something. Type its npm name and it gets a run report, a page agents can look up through Bragproof's MCP server and API, and a badge for its README. No post to write, no account, no pull request, and nothing to install.</p>
 ${askForm()}
 
 <h2>What happens</h2>
@@ -25,14 +25,15 @@ ${askForm()}
 
 <h2>Getting a good report</h2>
 <ul>
-<li><b>Answer <code>tools/list</code> without a key.</b> Ask for the key when a tool is called, not at start. Then agents can see what you offer before anyone signs up for anything. Many servers on npm do not start without setup; <a href="/state">the numbers</a>.</li>
+<li><b>Answer <code>tools/list</code> without a key.</b> Ask for the key when a tool is called, not at start. Then agents can see what you offer before anyone signs up for anything. A large share of the servers we ran need setup first (see <a href="/state">the numbers</a>).</li>
 <li><b>Say what is missing.</b> If you must have a setting, print its name to the error stream before you exit. The report shows it to whoever is about to use you.</li>
 <li><b>Keep start quiet.</b> Contacting a server just from being started shows up in the report.</li>
 <li><b>Write tool descriptions for a stranger's agent.</b> Describe what the tool does. Text that addresses the user, other tools or private files is quoted on your report.</li>
 </ul>
 
 <h2>The badge</h2>
-<p>Once the report is in, put this in your README. It always shows the newest report.</p>
+<p><img src="/badge/@odgrim/mcp-datetime.svg" alt="Example badge: starts, 4 tools, contacts 0 hosts" height="20"></p>
+<p>Once the report is in, put this in your README. It shows the newest report.</p>
 <pre class="cmd">${esc(`[![Bragproof](${origin}/badge/YOUR-PACKAGE.svg)](${origin}/r/YOUR-PACKAGE)`)}</pre>
 <p>Released a new version? Ask again here; a report older than a day is run afresh.</p>
 
@@ -64,7 +65,7 @@ export function aboutPage(origin: string): string {
 <p>Bragproof runs it first, somewhere that does not matter, and publishes what happened. Each server gets a <b>run report</b>: not a review, not a score, and nothing the maker wrote about themselves. Only what a neutral machine saw.</p>
 <div class="two">
 <div class="card"><h3>If you are choosing a tool</h3><p class="muted">See whether it starts with no setup, which settings it asks for, what it contacts, and what its tool descriptions will say to your agent, before any of its code runs near you.</p></div>
-<div class="card"><h3>If you made one</h3><p class="muted">Type its name. It is listed where agents search, with evidence that it works, without a launch post or a following. <a href="/publish">Get listed</a></p></div>
+<div class="card"><h3>If you made one</h3><p class="muted">Type its name. It is listed where agents search, with a report of whether it starts and what it needs, without a launch post or a following. <a href="/publish">Get listed</a></p></div>
 </div>
 
 <h2>What a report records</h2>
@@ -97,7 +98,8 @@ export function aboutPage(origin: string): string {
 </ul>
 <p>"Needs setup" is not a fault. Many good servers need a key. It is there so you know before you try.</p>
 
-<h2 id="levels">Proven calls and their three levels</h2>
+<h2 id="levels">Proven calls</h2>
+<details><summary>A second, stronger kind of evidence, with three levels</summary>
 <p>Separately from reports, a maker can prove that specific calls return specific results. Those <a href="/claims">proven calls</a> carry a receipt at one of three levels.</p>
 <div class="scroll"><table><thead><tr><th>Level</th><th>What vouches for the run</th><th>What you are trusting</th></tr></thead><tbody>
 <tr><td><span class="badge ok">Attested</span></td><td>A confidential machine (for example Intel TDX): the hardware signs what ran.</td><td>The chip maker, the cloud host, and that nobody had physical access.</td></tr>
@@ -105,6 +107,7 @@ export function aboutPage(origin: string): string {
 <tr><td><span class="badge weak">Self-reported</span></td><td>Nothing.</td><td>Whoever ran it. Not shown unless you ask.</td></tr>
 </tbody></table></div>
 <p class="small muted"><b>Proven N times by N accounts</b> counts passing runs and the different GitHub accounts or cloud projects that asked for them, the maker's own included. Accounts are cheap to make: read two or more as "someone besides the maker checked", not as a vote.</p>
+</details>
 <p style="margin-top:20px"><a class="button" href="/publish">Get your server listed</a></p>`;
   return page({ title: "How it works · Bragproof", origin, path: "/about", body });
 }
