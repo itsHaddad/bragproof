@@ -1,0 +1,33 @@
+name: try input
+# Runs specs handed in as input (a base64 JSON array) in the runner's jail and prints what each step
+# returned. No token is requested and nothing is published: this is for trying things out.
+on:
+  workflow_dispatch:
+    inputs:
+      specs_b64:
+        description: base64 of a JSON array of specs
+        required: true
+permissions:
+  contents: read
+jobs:
+  try:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run each spec
+        env:
+          SPECS_B64: ${{ inputs.specs_b64 }}
+        run: |
+          image=$(grep -o 'ghcr.io/itshaddad/bragproof-runner@sha256:[0-9a-f]*' .github/workflows/check.yml | head -1)
+          printf '%s' "$SPECS_B64" | base64 -d > specs.json
+          n=$(jq length specs.json)
+          for i in $(seq 0 $((n - 1))); do
+            jq -c ".[$i]" specs.json > one.json
+            out=$(timeout 420 docker run --rm --security-opt no-new-privileges --memory 3g -e CHECK_SPEC_B64="$(base64 -w0 one.json)" "$image" 2>err.txt | grep -o '^BRAGPROOF-RECEIPT:[A-Za-z0-9+/=]*$' | cut -d: -f2 | base64 -d || true)
+            if [ -n "$out" ]; then
+              printf '%s' "$out" | jq -c '{RESULT: "'"$i"'", package: .spec.subject.package, version: .spec.subject.version, pass: .result.pass, steps: [.result.steps[] | {tool, pass, error: (.error // null), preview: (.outputPreview[0:160])}]}'
+            else
+              jq -c '{RESULT: "'"$i"'", package: .subject.package, version: .subject.version, pass: false, steps: [], runner: $err}' --arg err "$(tail -c 300 err.txt)" one.json
+            fi
+          done
