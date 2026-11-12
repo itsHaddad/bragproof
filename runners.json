@@ -1,6 +1,12 @@
 {
   "about": "What verifiers accept by default. 'runners': container images of the bragproof runner, by digest, for hardware-attested runs. 'github': the check workflow and the commits of it that are accepted for runs witnessed by GitHub; each of those commits pins a runner image by digest. Anything found unsound is removed, and receipts made with it stop verifying.",
-  "runners": [],
+  "runners": [
+    {
+      "digest": "sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5",
+      "image": "ghcr.io/itshaddad/bragproof-runner",
+      "note": "Runs the package under test in a jail that forbids privilege gains and is self-tested before every run."
+    }
+  ],
   "github": {
     "workflow": "itsHaddad/bragproof/.github/workflows/check.yml",
     "commits": [
