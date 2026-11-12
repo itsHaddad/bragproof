@@ -1,0 +1,90 @@
+{
+  "v": 1,
+  "claim": "Without a Mapbox access token, the server computes the distance, bearing and midpoint between two coordinates and the length of a line.",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "Mapbox MCP server",
+    "package": "@mapbox/mcp-server",
+    "version": "0.18.0"
+  },
+  "steps": [
+    {
+      "tool": "distance_tool",
+      "arguments": {
+        "from": {
+          "longitude": 13.19,
+          "latitude": 55.7
+        },
+        "to": {
+          "longitude": 18.07,
+          "latitude": 59.33
+        },
+        "units": "kilometers"
+      },
+      "expect": {
+        "contains": "Distance: 497.578 kilometers"
+      }
+    },
+    {
+      "tool": "bearing_tool",
+      "arguments": {
+        "from": {
+          "longitude": 13.19,
+          "latitude": 55.7
+        },
+        "to": {
+          "longitude": 18.07,
+          "latitude": 59.33
+        }
+      },
+      "expect": {
+        "contains": "Bearing: 33.79"
+      }
+    },
+    {
+      "tool": "midpoint_tool",
+      "arguments": {
+        "from": {
+          "longitude": 13.19,
+          "latitude": 55.7
+        },
+        "to": {
+          "longitude": 18.07,
+          "latitude": 59.33
+        }
+      },
+      "expect": {
+        "contains": "Midpoint: [15.508489, 57.538482]"
+      }
+    },
+    {
+      "tool": "length_tool",
+      "arguments": {
+        "coordinates": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "units": "kilometers"
+      },
+      "expect": {
+        "contains": "Length: 222.39 kilometers"
+      }
+    }
+  ],
+  "tags": [
+    "mcp",
+    "geo",
+    "maps",
+    "distance"
+  ]
+}

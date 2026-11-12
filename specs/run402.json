@@ -1,0 +1,24 @@
+{
+  "v": 1,
+  "claim": "The docs tool returns the index of the SDK reference shipped in the package.",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "run402 MCP",
+    "package": "run402-mcp",
+    "version": "4.150.0"
+  },
+  "steps": [
+    {
+      "tool": "docs",
+      "arguments": {},
+      "expect": {
+        "contains": "# run402-mcp docs: index"
+      }
+    }
+  ],
+  "tags": [
+    "mcp",
+    "docs",
+    "deploy"
+  ]
+}

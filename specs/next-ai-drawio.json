@@ -1,0 +1,24 @@
+{
+  "v": 1,
+  "claim": "The get_drawing_guide tool returns a guide to draw.io XML format, layout and edge routing.",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "Next AI Draw.io MCP server",
+    "package": "@next-ai-drawio/mcp-server",
+    "version": "0.4.13"
+  },
+  "steps": [
+    {
+      "tool": "get_drawing_guide",
+      "arguments": {},
+      "expect": {
+        "contains": "# Draw.io drawing guide"
+      }
+    }
+  ],
+  "tags": [
+    "mcp",
+    "diagrams",
+    "drawio"
+  ]
+}

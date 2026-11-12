@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The whatToEat tool recommends a set of dishes for a given number of people.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "howtocook-mcp",
+    "name": "HowToCook MCP",
     "package": "howtocook-mcp",
     "version": "0.2.2"
   },
@@ -14,8 +14,13 @@
         "peopleCount": 2
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "\"peopleCount\": 2"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "recipes",
+    "cooking"
   ]
 }

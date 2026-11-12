@@ -1,6 +1,6 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The echo tool returns the message it was given, prefixed with 'Echo: '.",
   "subject": {
     "kind": "mcp-stdio",
     "name": "mcp-echo-server",
@@ -14,8 +14,12 @@
         "message": "bragproof-7f3a"
       },
       "expect": {
-        "matches": "\\S"
+        "equals": "Echo: bragproof-7f3a"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "testing"
   ]
 }

@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "claim": "The list_versions tool lists the available AG Grid versions.",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "AG Grid MCP",
+    "package": "ag-mcp",
+    "version": "1.0.0"
+  },
+  "steps": [
+    {
+      "tool": "list_versions",
+      "arguments": {},
+      "expect": {
+        "matches": "Available AG Grid Versions:\\*\\*\\s+- \\d+\\.\\d+\\.\\d+"
+      }
+    }
+  ],
+  "tags": [
+    "mcp",
+    "ag-grid",
+    "docs",
+    "needs-network"
+  ]
+}

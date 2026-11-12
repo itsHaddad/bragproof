@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The server searches the draw.io shape library by keyword, returning style strings, and returns a Mermaid reference for diagram generation.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@drawio/mcp",
+    "name": "draw.io MCP server",
     "package": "@drawio/mcp",
     "version": "1.12.0"
   },
@@ -15,7 +15,7 @@
         "limit": 3
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "\"style\""
       }
     },
     {
@@ -24,8 +24,13 @@
         "format": "mermaid"
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "# Mermaid Reference"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "diagrams",
+    "drawio"
   ]
 }

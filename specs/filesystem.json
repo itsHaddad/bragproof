@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "Started with one allowed directory, the server lists it, writes a text file there and reads the same text back.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@modelcontextprotocol/server-filesystem",
+    "name": "MCP Filesystem server",
     "package": "@modelcontextprotocol/server-filesystem",
     "version": "2.3.0",
     "args": [
@@ -15,7 +15,7 @@
       "tool": "list_allowed_directories",
       "arguments": {},
       "expect": {
-        "matches": "\\S"
+        "contains": "/tmp"
       }
     },
     {
@@ -25,7 +25,7 @@
         "content": "bragproof-7f3a"
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "Successfully wrote"
       }
     },
     {
@@ -34,8 +34,13 @@
         "path": "/tmp/bragproof.txt"
       },
       "expect": {
-        "matches": "\\S"
+        "equals": "bragproof-7f3a"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "reference",
+    "files"
   ]
 }

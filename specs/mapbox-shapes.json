@@ -1,62 +1,13 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "Without a Mapbox access token, the server computes the area, centroid and bounding box of a polygon and simplifies a line.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@mapbox/mcp-server",
+    "name": "Mapbox MCP server",
     "package": "@mapbox/mcp-server",
     "version": "0.18.0"
   },
   "steps": [
-    {
-      "tool": "distance_tool",
-      "arguments": {
-        "from": {
-          "longitude": 13.19,
-          "latitude": 55.7
-        },
-        "to": {
-          "longitude": 18.07,
-          "latitude": 59.33
-        },
-        "units": "kilometers"
-      },
-      "expect": {
-        "matches": "\\S"
-      }
-    },
-    {
-      "tool": "bearing_tool",
-      "arguments": {
-        "from": {
-          "longitude": 13.19,
-          "latitude": 55.7
-        },
-        "to": {
-          "longitude": 18.07,
-          "latitude": 59.33
-        }
-      },
-      "expect": {
-        "matches": "\\S"
-      }
-    },
-    {
-      "tool": "midpoint_tool",
-      "arguments": {
-        "from": {
-          "longitude": 13.19,
-          "latitude": 55.7
-        },
-        "to": {
-          "longitude": 18.07,
-          "latitude": 59.33
-        }
-      },
-      "expect": {
-        "matches": "\\S"
-      }
-    },
     {
       "tool": "area_tool",
       "arguments": {
@@ -87,7 +38,7 @@
         "units": "kilometers"
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "Area: 12363.718 square kilometers"
       }
     },
     {
@@ -119,7 +70,7 @@
         ]
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "Centroid: [0.5, 0.5]"
       }
     },
     {
@@ -151,8 +102,37 @@
         ]
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "Bounding Box: [0, 0, 1, 1]"
+      }
+    },
+    {
+      "tool": "simplify_tool",
+      "arguments": {
+        "geometry": [
+          [
+            0,
+            0
+          ],
+          [
+            0.5,
+            0.001
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "tolerance": 0.01
+      },
+      "expect": {
+        "contains": "Simplified vertices: 2"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "geo",
+    "maps",
+    "geometry"
   ]
 }

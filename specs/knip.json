@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The knip-docs tool returns a Knip documentation page by topic, here configuration.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@knip/mcp",
+    "name": "Knip MCP",
     "package": "@knip/mcp",
     "version": "0.0.38"
   },
@@ -14,8 +14,13 @@
         "topic": "configuration"
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "Knip"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "knip",
+    "docs"
   ]
 }

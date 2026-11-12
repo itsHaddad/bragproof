@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The get-npm-package-details tool returns the name, description and latest version of an npm package.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "package-registry-mcp",
+    "name": "Package Registry MCP",
     "package": "package-registry-mcp",
     "version": "2.1.0"
   },
@@ -14,8 +14,14 @@
         "name": "left-pad"
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "\"name\": \"left-pad\""
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "npm",
+    "packages",
+    "needs-network"
   ]
 }

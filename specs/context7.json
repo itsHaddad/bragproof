@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "Without an API key, the resolve-library-id tool finds the Context7 library ID for a library name, here React.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@upstash/context7-mcp",
+    "name": "Context7 MCP",
     "package": "@upstash/context7-mcp",
     "version": "4.6.0"
   },
@@ -15,8 +15,14 @@
         "query": "react hooks"
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "Context7-compatible library ID: /"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "docs",
+    "libraries",
+    "needs-network"
   ]
 }

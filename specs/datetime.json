@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The server lists IANA timezones and returns the current time in a named timezone as an ISO timestamp.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@odgrim/mcp-datetime",
+    "name": "mcp-datetime",
     "package": "@odgrim/mcp-datetime",
     "version": "0.2.0"
   },
@@ -12,7 +12,7 @@
       "tool": "list-timezones",
       "arguments": {},
       "expect": {
-        "matches": "\\S"
+        "contains": "Europe/Stockholm"
       }
     },
     {
@@ -21,8 +21,13 @@
         "timezone": "UTC"
       },
       "expect": {
-        "matches": "\\S"
+        "matches": "^The current time in UTC is \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "time",
+    "timezone"
   ]
 }

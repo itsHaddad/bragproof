@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The nx_docs tool returns Nx documentation sections relevant to a question.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "nx-mcp",
+    "name": "Nx MCP",
     "package": "nx-mcp",
     "version": "0.25.3"
   },
@@ -14,8 +14,15 @@
         "userQuery": "how do I run a task"
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "documentation sections"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "nx",
+    "monorepo",
+    "docs",
+    "needs-network"
   ]
 }

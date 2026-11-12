@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The sequentialthinking tool records a thought and reports its number and the length of the thought history.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@modelcontextprotocol/server-sequential-thinking",
+    "name": "MCP Sequential Thinking server",
     "package": "@modelcontextprotocol/server-sequential-thinking",
     "version": "2.1.1"
   },
@@ -17,8 +17,13 @@
         "totalThoughts": 1
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "\"thoughtHistoryLength\": 1"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "reference",
+    "reasoning"
   ]
 }

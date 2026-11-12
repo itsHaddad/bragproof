@@ -1,0 +1,27 @@
+{
+  "v": 1,
+  "claim": "The get_version_info tool returns the current OpenUI5 versions with their support status.",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "UI5 MCP server",
+    "package": "@ui5/mcp-server",
+    "version": "0.3.3"
+  },
+  "steps": [
+    {
+      "tool": "get_version_info",
+      "arguments": {
+        "frameworkName": "OpenUI5"
+      },
+      "expect": {
+        "matches": "\"latest\":\\{\"version\":\"\\d+\\.\\d+\\.\\d+\""
+      }
+    }
+  ],
+  "tags": [
+    "mcp",
+    "ui5",
+    "sap",
+    "needs-network"
+  ]
+}

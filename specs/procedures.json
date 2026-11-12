@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The client.and tool returns the last value when all are truthy, and client.not negates a boolean.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@procedures/mcp-dev-tools",
+    "name": "Procedures MCP dev tools",
     "package": "@procedures/mcp-dev-tools",
     "version": "0.55.0"
   },
@@ -17,7 +17,7 @@
         ]
       },
       "expect": {
-        "matches": "\\S"
+        "equals": "bragproof"
       }
     },
     {
@@ -26,8 +26,13 @@
         "value": false
       },
       "expect": {
-        "matches": "\\S"
+        "equals": "true"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "logic",
+    "testing"
   ]
 }

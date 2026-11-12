@@ -1,0 +1,24 @@
+{
+  "v": 1,
+  "claim": "The get_setup_instructions tool returns instructions for setting up the MCP Bridge plugin in a Tauri project.",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "Tauri MCP server",
+    "package": "@hypothesi/tauri-mcp-server",
+    "version": "0.13.2"
+  },
+  "steps": [
+    {
+      "tool": "get_setup_instructions",
+      "arguments": {},
+      "expect": {
+        "contains": "MCP Bridge plugin"
+      }
+    }
+  ],
+  "tags": [
+    "mcp",
+    "tauri",
+    "desktop"
+  ]
+}

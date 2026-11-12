@@ -1,5 +1,5 @@
 name: try
-# Runs draft specs (tools/drafts/) in the runner's jail and keeps the unproven receipts, to see what each tool
+# Runs the specs (specs/) in the runner's jail and keeps the unproven receipts, to see what each tool
 # really returns before a claim is written. No token is requested and nothing is published.
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
         run: |
           image=$(grep -o 'ghcr.io/itshaddad/bragproof-runner@sha256:[0-9a-f]*' .github/workflows/check.yml | head -1)
           mkdir -p receipts; i=0
-          for f in tools/drafts/*.json; do
+          for f in specs/*.json; do
             i=$((i+1)); [ $((i % 6)) = "$SHARD" ] || continue
             name=$(basename "$f" .json); echo "== $name"
             timeout 420 docker run --rm --security-opt no-new-privileges --memory 3g -e CHECK_SPEC_B64="$(base64 -w0 "$f")" "$image" 2>"receipts/$name.err" | grep -o '^BRAGPROOF-RECEIPT:[A-Za-z0-9+/=]*$' | cut -d: -f2 | base64 -d > "receipts/$name.json" || true

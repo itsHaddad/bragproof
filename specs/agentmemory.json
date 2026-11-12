@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "With no server running, the tools save a memory to local storage and find it again by searching for a word in it.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@agentmemory/mcp",
+    "name": "agentmemory MCP",
     "package": "@agentmemory/mcp",
     "version": "0.9.33"
   },
@@ -14,7 +14,7 @@
         "content": "bragproof-7f3a is a test note"
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "\"saved\""
       }
     },
     {
@@ -23,8 +23,13 @@
         "query": "bragproof-7f3a"
       },
       "expect": {
-        "matches": "\\S"
+        "matches": "\"matched_count\": [1-9]"
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "memory",
+    "agents"
   ]
 }

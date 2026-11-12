@@ -1,0 +1,24 @@
+{
+  "v": 1,
+  "claim": "The ef_list_lore_categories tool lists the archive and encyclopedia categories of the game Arknights: Endfield.",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "Endfield MCP",
+    "package": "endfield-mcp",
+    "version": "0.4.0"
+  },
+  "steps": [
+    {
+      "tool": "ef_list_lore_categories",
+      "arguments": {},
+      "expect": {
+        "contains": "PRTS"
+      }
+    }
+  ],
+  "tags": [
+    "mcp",
+    "games",
+    "wiki"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "v": 1,
+  "claim": "The get_guidelines tool returns the UI5 development guidelines an agent should read before working on a UI5 project.",
+  "subject": {
+    "kind": "mcp-stdio",
+    "name": "UI5 MCP server",
+    "package": "@ui5/mcp-server",
+    "version": "0.3.3"
+  },
+  "steps": [
+    {
+      "tool": "get_guidelines",
+      "arguments": {},
+      "expect": {
+        "contains": "# UI5 Development Guidelines"
+      }
+    }
+  ],
+  "tags": [
+    "mcp",
+    "ui5",
+    "sap"
+  ]
+}

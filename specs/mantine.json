@@ -1,9 +1,9 @@
 {
   "v": 1,
-  "claim": "draft",
+  "claim": "The list_items tool lists Mantine documentation items filtered by kind, here hooks.",
   "subject": {
     "kind": "mcp-stdio",
-    "name": "@mantine/mcp-server",
+    "name": "Mantine MCP server",
     "package": "@mantine/mcp-server",
     "version": "9.8.0"
   },
@@ -15,8 +15,14 @@
         "limit": 5
       },
       "expect": {
-        "matches": "\\S"
+        "contains": "\"kind\": \"hook\""
       }
     }
+  ],
+  "tags": [
+    "mcp",
+    "mantine",
+    "react",
+    "docs"
   ]
 }
