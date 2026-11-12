@@ -5,9 +5,9 @@
     "workflow": "itsHaddad/bragproof/.github/workflows/check.yml",
     "commits": [
       {
-        "commit": "86a30cce9689ca0f15ca7982765549b5f8331316",
+        "commit": "6ba29c80fdd7e40bb2e681370674badead109dd6",
         "tag": "check-v1",
-        "image": "sha256:966049581611a00f8e90658c29eeecf5551fee30beeba7a6b7470ff9d34b7259"
+        "image": "sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5"
       }
     ]
   }
