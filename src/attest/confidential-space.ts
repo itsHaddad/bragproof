@@ -40,7 +40,16 @@ export type Policy = {
 
 export const DEFAULT_HARDWARE = ["GCP_INTEL_TDX", "GCP_AMD_SEV_SNP"];
 
-export type AttestedFacts = { hardware: string; imageDigest: string; imageReference: string; issuedAt: string; host: string };
+/** `requester` says who asked for the run, as the evidence names them: "github:owner/repo" or "gcp:project". */
+export type AttestedFacts = { hardware: string; imageDigest: string; imageReference: string; issuedAt: string; host: string; requester: string };
+
+/** Who asked for a run, read from a token's claims. Used by the verifiers, and by a store to label receipts it
+ * verified before it kept this field. */
+export function requesterOf(kind: string, claims: Record<string, any>): string {
+  const name = kind === "github-actions" ? claims.repository : kind === "gcp-confidential-space" ? claims.submods?.gce?.project_id : undefined;
+  if (typeof name !== "string" || !/^[A-Za-z0-9._:/-]{1,100}$/.test(name)) return "";
+  return (kind === "github-actions" ? "github:" : "gcp:") + name;
+}
 
 export type TokenVerdict = { ok: true; facts: AttestedFacts } | { ok: false; reason: string };
 
@@ -70,7 +79,7 @@ export async function verifyToken(token: string, bodyHash: string, finishedAt: s
   const finished = Date.parse(finishedAt) / 1000;
   if (!Number.isFinite(iat) || Math.abs(iat - finished) > policy.maxSkewSeconds) return no("token was not issued at the time of the run");
   const gce = claims.submods?.gce ?? {};
-  return { ok: true, facts: { hardware, imageDigest: digest, imageReference: String(container.image_reference ?? ""), issuedAt: new Date(iat * 1000).toISOString(), host: `google-cloud:${gce.zone ?? "unknown"}` } };
+  return { ok: true, facts: { hardware, imageDigest: digest, imageReference: String(container.image_reference ?? ""), issuedAt: new Date(iat * 1000).toISOString(), host: `google-cloud:${gce.zone ?? "unknown"}`, requester: requesterOf("gcp-confidential-space", claims) } };
 }
 
 const defaultKeys = issuerKeys(ISSUER);

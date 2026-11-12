@@ -1,4 +1,4 @@
-import type { AttestedFacts, Policy, TokenVerdict } from "./confidential-space.ts";
+import { type AttestedFacts, type Policy, requesterOf, type TokenVerdict } from "./confidential-space.ts";
 import { issuerKeys, type JwksSource, verifyJwt } from "./jwt.ts";
 
 /** GitHub Actions as the witness: a job on a GitHub-hosted machine can ask GitHub for a signed token that
@@ -41,7 +41,7 @@ export async function verifyGithubToken(token: string, bodyHash: string, finishe
   if (!policy.githubCommits.includes(commit)) return no(`the check workflow was read from a commit (${commit.slice(0, 12) || "unknown"}) this verifier does not accept`);
   const iat = typeof claims.iat === "number" ? claims.iat : Number.NaN;
   if (!Number.isFinite(iat) || Math.abs(iat - Date.parse(finishedAt) / 1000) > policy.maxSkewSeconds) return no("token was not issued at the time of the run");
-  const facts: AttestedFacts = { hardware: "GITHUB_HOSTED", imageDigest: commit, imageReference: ref, issuedAt: new Date(iat * 1000).toISOString(), host: "github-actions:" + String(claims.repository ?? "unknown").slice(0, 100) };
+  const facts: AttestedFacts = { hardware: "GITHUB_HOSTED", imageDigest: commit, imageReference: ref, issuedAt: new Date(iat * 1000).toISOString(), host: "github-actions:" + String(claims.repository ?? "unknown").slice(0, 100), requester: requesterOf("github-actions", claims) };
   return { ok: true, facts };
 }
 

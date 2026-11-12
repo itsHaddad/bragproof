@@ -72,7 +72,7 @@ export const goodClaims = (bodyHash: string, finishedAt: string): Record<string,
   dbgstat: "disabled-since-boot",
   secboot: true,
   hwmodel: "GCP_INTEL_TDX",
-  submods: { container: { image_digest: RUNNER, image_reference: "example/runner@" + RUNNER }, gce: { zone: "europe-west4-a" } },
+  submods: { container: { image_digest: RUNNER, image_reference: "example/runner@" + RUNNER }, gce: { zone: "europe-west4-a", project_id: "some-project" } },
 });
 
 export function attestedReceipt(attestor: ReturnType<typeof fakeAttestor>, change: (claims: Record<string, any>) => void = () => {}, s = spec(), r = result()): Receipt {

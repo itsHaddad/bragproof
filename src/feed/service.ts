@@ -2,7 +2,8 @@ import type { Policy } from "../attest/confidential-space.ts";
 import type { JwksSource } from "../attest/jwt.ts";
 import { defaultPolicy, normalForm, verifyReceipt } from "../receipt/receipt.ts";
 import type { Receipt } from "../receipt/types.ts";
-import type { FeedStore, PostRow, Query } from "./sql.ts";
+import type { ClaimQuery, ClaimRow, PostRow, Query } from "./sql.ts";
+import type { ClaimDetail, FeedStore, Stats } from "./store.ts";
 
 export type PublishOutcome = { ok: true; id: string; level: string; added: boolean } | { ok: false; reason: string };
 
@@ -10,7 +11,7 @@ export type FeedOptions = {
   policy?: Policy;
   keys?: JwksSource;
   /** How many self-reported receipts the feed keeps. They cost nothing to make, so a public feed keeps few
-   * (or none: 0) and a private one may keep many. Attested receipts are never capped. */
+   * (or none: 0) and a private one may keep many. Proven receipts are never capped. */
   selfReportedCap?: number;
 };
 
@@ -35,7 +36,7 @@ function limiter(perMinute: number) {
 export const senderKey = (address: string) => (address.includes(":") && !address.startsWith("::ffff:") ? address.split(":").slice(0, 4).join(":") : address);
 
 /** What the feed does, apart from HTTP: admit a receipt only after verifying it, and answer queries. The REST
- * routes and the MCP tools both call this, so they cannot drift apart. */
+ * routes, the MCP tools and the pages all call this, so they cannot drift apart. */
 export class FeedService {
   private policy: Policy;
   private allow = limiter(20);
@@ -59,14 +60,15 @@ export class FeedService {
     const verdict = await verifyReceipt(receipt, this.policy, this.options.keys);
     if (!verdict.ok) return { ok: false, reason: verdict.reason };
     const cap = this.options.selfReportedCap ?? 1000;
-    if (verdict.level === "self-reported" && (await this.db.count("self-reported")) >= cap) return { ok: false, reason: cap === 0 ? "this feed only takes proven receipts (witnessed or attested)" : "this feed holds as many self-reported receipts as it keeps; attested ones are always taken" };
+    if (verdict.level === "self-reported" && (await this.db.count("self-reported")) >= cap) return { ok: false, reason: cap === 0 ? "this feed only takes proven receipts (witnessed or attested)" : "this feed holds as many self-reported receipts as it keeps; proven ones are always taken" };
     // Stored in normal form: only the fields the format defines, so nothing unverified is served alongside.
     const r = normalForm(receipt as Receipt);
     // The hardware column is for hardware evidence only; a run GitHub witnessed has none.
-    const stored = await this.db.add(r, verdict.level, verdict.level === "attested" ? (verdict.facts?.hardware ?? null) : null);
+    const stored = await this.db.add(r, verdict.level, verdict.level === "attested" ? (verdict.facts?.hardware ?? null) : null, verdict.facts?.requester ?? null);
     return { ok: true, id: r.bodyHash, level: stored.level, added: stored.added };
   }
 
+  /** Receipts, for catching up on new evidence. */
   async search(query: Query): Promise<{ posts: PostRow[]; cursor: number }> {
     const posts = await this.db.find(query);
     return { posts, cursor: posts.reduce((m, p) => Math.max(m, p.seq), query.after ?? 0) };
@@ -74,5 +76,22 @@ export class FeedService {
 
   async receipt(id: string): Promise<Receipt | null> {
     return /^[0-9a-f]{64}$/.test(id) ? this.db.receipt(id) : null;
+  }
+
+  /** Claims with their proof counted: what a reader choosing a tool wants. */
+  claims(query: ClaimQuery): Promise<ClaimRow[]> {
+    return this.db.claims(query);
+  }
+
+  async claim(specHash: string): Promise<ClaimDetail | null> {
+    return /^[0-9a-f]{64}$/.test(specHash) ? this.db.claim(specHash) : null;
+  }
+
+  stats(): Promise<Stats> {
+    return this.db.stats();
+  }
+
+  tags(): Promise<{ tag: string; n: number }[]> {
+    return this.db.tags();
   }
 }

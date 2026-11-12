@@ -73,6 +73,8 @@ export type Receipt = {
 const MAX = { claim: 280, name: 80, tool: 120, steps: 20, tags: 8, tag: 32, expect: 2000, args: 8000 };
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+/** No control characters: such text ends up on command lines and in pages. */
+const printable = (s: string) => [...s].every((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127);
 const isStr = (v: unknown, max: number): v is string => typeof v === "string" && v.length > 0 && v.length <= max;
 
 /** Adds a problem for every key that the format does not define. Nothing unknown may ride along in a receipt:
@@ -96,8 +98,8 @@ export function specProblems(spec: unknown): string[] {
     if (!isStr(s.name, MAX.name)) p.push("spec.subject.name is missing or too long");
     if (!isStr(s.package, 214) || !/^(@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*$/.test(s.package as string)) p.push("spec.subject.package must be an npm package name");
     if (!isStr(s.version, 64) || !/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(s.version as string)) p.push("spec.subject.version must be an exact version such as 1.2.3");
-    if (s.bin !== undefined && !isStr(s.bin, 80)) p.push("spec.subject.bin is not a name");
-    if (s.args !== undefined && !(Array.isArray(s.args) && s.args.length <= 16 && s.args.every((a) => typeof a === "string" && a.length <= 200))) p.push("spec.subject.args must be up to 16 short strings");
+    if (s.bin !== undefined && !(isStr(s.bin, 80) && /^[A-Za-z0-9@._/-]+$/.test(s.bin))) p.push("spec.subject.bin is not a name");
+    if (s.args !== undefined && !(Array.isArray(s.args) && s.args.length <= 16 && s.args.every((a) => typeof a === "string" && a.length <= 200 && printable(a)))) p.push("spec.subject.args must be up to 16 short strings");
     if (s.homepage !== undefined && !(isStr(s.homepage, 300) && /^https:\/\//.test(s.homepage))) p.push("spec.subject.homepage must be an https URL");
   }
   if (!Array.isArray(spec.steps) || spec.steps.length < 1 || spec.steps.length > MAX.steps) p.push(`spec.steps must hold 1 to ${MAX.steps} steps`);
