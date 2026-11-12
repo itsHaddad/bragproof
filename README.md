@@ -12,14 +12,16 @@ Every report is signed by the public job that made it, so nobody has to take thi
 
 Measured on 12 November 2026 from the 1,500 most-downloaded npm packages that present themselves as MCP
 servers. 155 had no start command (libraries and kits, not servers) and are left out.
+The runner is Linux x64 with Node 24.
 
 | | |
 |---|---|
-| Start with no setup and list their tools | **58%** (786 of 1,348) |
-| Need setup first (a key, an argument) | 268 |
-| Did not start, and did not say what they need | 243 |
-| Contact something other than npm just from being installed and started | 209, of which 136 are one publisher's packages calling the same gateway |
-| Have tool descriptions with commands in capitals or other unusual wording | 160 |
+| Start with no setup and list their tools | **65%** (878 of 1,348) |
+| Need setup first (a key, an argument) | 269 |
+| Did not start, and did not say what they need | 131 |
+| Need another program, a build step or a different machine | 44 |
+| Contact something other than npm just from being installed and started | 213, of which 136 are one publisher's packages calling the same gateway |
+| Have tool descriptions with commands in capitals or other unusual wording | 169 |
 | Have tool descriptions about the user, other tools or private files | 9 |
 
 Apart from that one family, what servers contact is mostly their own service, release downloads
@@ -29,6 +31,12 @@ credentials are read from. The list leans on download counts, which favour famil
 links down to the individual reports.
 
 ## Why this exists
+
+A careful agent can work most of this out by reading a package's source. We tested that: given twelve
+servers, an agent that only read code predicted every one correctly, in nine minutes and about 200,000
+tokens. Looking the same twelve up here takes seconds. That is the point: the work is done once, for
+everyone, on a machine that does not matter.
+
 
 An agent that needs a tool finds a package name and has to decide: will this start, what will it want from
 me, and what will it do on my machine? The only way to find out has been to run a stranger's code and see.
