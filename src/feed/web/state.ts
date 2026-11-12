@@ -14,10 +14,10 @@ export function statePage(s: State, origin: string): string {
   const list = (rows: { name: string; n: number }[], empty: string) => (rows.length ? `<div class="scroll"><table><tbody>${rows.map((r) => `<tr><td><code>${esc(r.name)}</code></td><td class="nw">${r.n} ${r.n === 1 ? "server" : "servers"}</td><td class="muted small">${hostNote(r.name)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">${empty}</p>`);
   const body = `
 <h1>The state of MCP servers</h1>
-<p class="lede">What happened when ${s.total} MCP servers from npm were each installed on a clean machine and started with no configuration. Live numbers: they change as reports come in.</p>
+<p class="lede">What happened when ${s.total.toLocaleString("en")} MCP servers from npm were each installed on a clean machine and started with no configuration. Live numbers: they change as reports come in.</p>
 <div class="facts">
-<div class="fact"><b>${pct(started, s.total)}%</b><span>start with no setup (${started} of ${s.total})</span></div>
-<div class="fact"><b>${s.contacting}</b><span>contact something just from being installed and started${s.hosts[0] && s.hosts[0].n * 2 > s.contacting ? `; ${s.hosts[0].n} of them the same host, <code>${esc(s.hosts[0].name)}</code>` : ""}</span></div>
+<div class="fact"><b>${pct(started, s.total)}%</b><span>start with no setup (${started.toLocaleString("en")} of ${s.total.toLocaleString("en")})</span></div>
+<div class="fact"><b>${s.contacting}</b><span>contact something when installed and started${s.hosts[0] && s.hosts[0].n * 2 > s.contacting ? `; ${s.hosts[0].n} of them the same host` : ""}</span></div>
 <div class="fact"><b>${s.flagged}</b><span>have tool text with commands in capitals or other unusual wording</span></div>
 <div class="fact"><b>${s.serious}</b><span>have tool text about the user, other tools or private files</span></div>
 </div>
@@ -59,6 +59,6 @@ export function badgeSvg(d: ReportDetail | null): string {
   const right = !d || !o ? "not reported" : o === "started" ? `starts · ${plural(d.summary.tools, "tool")}${d.report.network ? ` · contacts ${plural(d.summary.contacts.length, "host")}` : ""}` : outcomeLabel[o].toLowerCase();
   const color = (o && BADGE[o]) || "#66625a";
   const w1 = 70;
-  const w2 = Math.round(right.length * 6.1) + 16;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w1 + w2}" height="20" role="img" aria-label="bragproof: ${esc(right)}"><title>bragproof: ${esc(right)}</title><clipPath id="r"><rect width="${w1 + w2}" height="20" rx="4"/></clipPath><g clip-path="url(#r)"><rect width="${w1}" height="20" fill="#555"/><rect x="${w1}" width="${w2}" height="20" fill="${color}"/></g><g fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11"><text x="8" y="14">bragproof</text><text x="${w1 + 8}" y="14" textLength="${w2 - 16}" lengthAdjust="spacingAndGlyphs">${esc(right)}</text></g></svg>`;
+  const w2 = Math.round(right.length * 5.3) + 16;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w1 + w2}" height="20" role="img" aria-label="bragproof: ${esc(right)}"><title>bragproof: ${esc(right)}</title><clipPath id="r"><rect width="${w1 + w2}" height="20" rx="4"/></clipPath><g clip-path="url(#r)"><rect width="${w1}" height="20" fill="#555"/><rect x="${w1}" width="${w2}" height="20" fill="${color}"/></g><g fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11"><text x="8" y="14">bragproof</text><text x="${w1 + 8}" y="14" textLength="${w2 - 16}" lengthAdjust="spacing">${esc(right)}</text></g></svg>`;
 }

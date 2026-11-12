@@ -41,7 +41,7 @@ export function reportPage(d: ReportDetail, claims: ClaimRow[], origin: string):
   ].filter(([n]) => n !== "");
   const few = (xs: string[]) => xs.slice(0, 3).map((x) => `<code>${esc(x)}</code>`).join(", ") + (xs.length > 3 ? ` +${xs.length - 3}` : "");
   const reason = started ? "" : saidFirst(r);
-  const wants = started ? "nothing" : s.needs.length ? few(s.needs) : reason ? `<q>${esc(reason)}</q>` : "not said";
+  const wants = started ? "nothing" : s.needs.length ? few(s.needs) : reason ? `it did not say in so many words. It said: <q>${esc(reason)}</q>` : "it did not say";
   const answer = r.install.ok ? `<p class="answer"><b>Needs to start:</b> ${wants}${r.calls?.length ? `<br><b>Answers a call with no setup:</b> ${s.callsAnswered} of ${r.calls.length} tried` : ""}${r.network ? `<br><b>Contacts while installing and starting:</b> ${s.contacts.length ? few(s.contacts) : "nothing"}` : ""}</p>` : "";
   const contacted = `<h2>What it contacted</h2>
 ${!r.network ? '<p class="muted">Not recorded for this run.</p>' : s.contacts.length ? `<ul>${s.contacts.map((n) => `<li><code>${esc(n)}</code>${hostNote(n) ? `<span class="muted">: ${hostNote(n)}</span>` : ""}</li>`).join("")}</ul><p class="small muted">Hosts it looked up or connected to while installing and starting with no input, watched from outside its sandbox. The npm registry is left out. Says nothing about what its tools contact when called.</p>` : '<p>Nothing besides the npm registry it was installed from. <span class="muted">Watched from outside its sandbox while it was installed and started with no input. Its tools may still contact things when called.</span></p>'}`;
@@ -99,7 +99,7 @@ ${history.length > 1 ? `<h2>Versions reported</h2><div class="scroll"><table><th
 
 <h2>Check this report yourself</h2>
 <p>This site did not write the report. A public job on a GitHub-hosted machine did${r.host ? `: <a href="${esc(r.host.run)}" rel="noopener">the run</a>, from <a href="${REPO}/tree/${esc(r.host.commit)}" rel="noopener">this commit</a> of the open-source runner` : ""}. GitHub signed a token that names that job and the hash of the report, so any edit since would show.</p>
-<p class="small"><a href="/v1/reports/${esc(r.package)}">Report as JSON</a> · <a href="/v1/reports/${esc(r.package)}?raw=1">exact text and token</a> · <a href="/about#check">how to verify it</a></p>
+<p class="small"><a href="/v1/reports/${esc(r.package)}">Report as JSON</a> <a href="/v1/reports/${esc(r.package)}?raw=1" style="margin-left:14px">Exact text and token</a> <a href="/about#check" style="margin-left:14px">How to verify it</a></p>
 
 <h2>Show it on your README</h2>
 <p><img src="/badge/${esc(r.package)}.svg" alt="Bragproof: ${esc(outcomeLabel[s.outcome])}" height="20"></p>

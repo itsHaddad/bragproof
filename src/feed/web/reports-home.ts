@@ -22,7 +22,7 @@ export function homePage(o: { origin: string; rows: ReportRow[]; state: State; q
 <h1>Know what an MCP server does before you run it.</h1>
 <p class="lede">We install each MCP server on a throwaway machine, start it with nothing, and publish what happened: does it start, what does it need, what does it contact. Every report links to the public run that made it.</p>
 <div class="facts">
-<div class="fact"><b>${o.state.total}</b><span>servers reported</span></div>
+<div class="fact"><b>${o.state.total.toLocaleString("en")}</b><span>servers reported</span></div>
 <div class="fact"><b>${pct(started, o.state.total)}</b><span>start with no setup</span></div>
 <div class="fact"><b>${o.state.contacting}</b><span>contact something just from being installed and started</span></div>
 <div class="fact"><b>${o.state.serious}</b><span>have tool text about the user, other tools or private files</span></div>
