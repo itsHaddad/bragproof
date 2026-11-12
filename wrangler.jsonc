@@ -7,6 +7,6 @@
   "workers_dev": false,
   "routes": [{ "pattern": "bragproof.smaverk.com", "custom_domain": true }],
   "vars": { "PUBLIC_ORIGIN": "https://bragproof.smaverk.com" },
-  "d1_databases": [{ "binding": "DB", "database_name": "bragproof-feed", "database_id": "TO-BE-CREATED" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "bragproof-feed", "database_id": "cc990700-8f74-4f38-9a33-a722bce72e6c" }],
   "observability": { "enabled": true }
 }

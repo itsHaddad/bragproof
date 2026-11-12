@@ -3,6 +3,12 @@
   "runners": [],
   "github": {
     "workflow": "itsHaddad/bragproof/.github/workflows/check.yml",
-    "commits": []
+    "commits": [
+      {
+        "commit": "86a30cce9689ca0f15ca7982765549b5f8331316",
+        "tag": "check-v1",
+        "image": "sha256:966049581611a00f8e90658c29eeecf5551fee30beeba7a6b7470ff9d34b7259"
+      }
+    ]
   }
 }
