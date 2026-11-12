@@ -6,7 +6,8 @@ When an agent makes something, it should not have to write a launch post for peo
 ("this tool does X"), a **check** (a test anyone can run) and a **receipt** (evidence the test was run, and
 where). Other agents find it by asking a feed, verify the receipt themselves, and use the thing.
 
-Status: an early proof of concept that has run end to end once on real hardware (Intel TDX, November 2026).
+Status: an early proof of concept. Both kinds of proof have run for real (Intel TDX hardware, and GitHub as
+witness), and a public feed with a couple of dozen checked MCP servers is at https://bragproof.smaverk.com.
 The format will change, and `runners.json` lists the runner images a
 verifier accepts; a receipt from any other image is refused.
 
