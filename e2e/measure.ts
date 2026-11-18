@@ -50,7 +50,7 @@ async function statesRun(browser: Browser): Promise<void> {
         }
         if (state.name === "facts") {
           const text = (await page.textContent(".recorded")) ?? "";
-          check(text.includes("the last 8 of 10 check runs") && text.includes('pytest -k "not slow" || true: exit state not recorded') && text.includes("tail -5: exit state not recorded") && text.includes("bun test: failed; last output") && !/(true|tail -5): (ended normally|failed)/.test(text), `${tag}: the recorded block shows whole command lines, no exit state for a piped or || true check, and says it is the last 8 of 10`);
+          check(text.includes("last 8 of 10 check runs") &&text.includes('pytest -k "not slow" || true: exit state not recorded') && text.includes("tail -5: exit state not recorded") && text.includes("bun test: failed; last output") && !/(true|tail -5): (ended normally|failed)/.test(text), `${tag}: the recorded block shows whole command lines, no exit state for a piped or || true check, and says it is the last 8 of 10`);
         }
         if (state.name === "clean") check((await page.textContent("#readout"))?.includes("not proof") === true, `${tag}: a clean log says what a clean report does not prove`);
         if (state.name === "wrong") check((await page.textContent("#error"))?.includes("Nothing was read") === true && (await page.locator(".chip-example").count()) === 1, `${tag}: a wrong file is refused in words and the example stays`);

@@ -9,7 +9,9 @@
   .panel { background: none; border: 0; padding: 0; }
   .panel-main { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); }
   .brag-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .recorded-note, .recorded-list .is-early, .kinds-wide { display: none; }
+  .recorded-note, .recorded-list .is-early, .kinds-wide, .has-early .recorded-wide { display: none; }
+  .evidence { padding: var(--s-2); }
+  .readout { padding-top: var(--s-2); gap: var(--s-1); }
   .panel-main { gap: var(--s-2); }
   .readout { min-height: 0; }
   .readout { min-height: 9.5rem; }

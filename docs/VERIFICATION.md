@@ -53,4 +53,10 @@ buttons and the slider reading every step, and line width measured in the elemen
 Two runner passes failed on the way (18 checks each time) and one defect was found only on the phone walk: a
 reveal that waited for a quarter of a block to be in view left the long rules table invisible on a phone.
 
-Not done: a second independent pass on the fixed build. The first Designer pass the skill asks for before any public link. This run was by the builder.
+A second review found the new "what the log records" block pinning an exit state on one part of a command line.
+It now shows the whole line and an exit state only where the check is the line's last command, heads a shortened
+list "last 8 of N", and the same question was put to the rest of the page (findings on failed steps, capped lists,
+marks left off the tape, permission wording). The runner has a state for it (`facts`). The result of the runner on
+that build is in the pull request's checks.
+
+Not done: a third independent pass on that build. The first Designer pass the skill asks for before any public link. This run was by the builder.

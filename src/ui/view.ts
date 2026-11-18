@@ -95,9 +95,9 @@ function recorded(report: Report): El {
     { class: "recorded" },
     h(
       "p",
-      { class: "brag-label muted" },
-      total > kept ? `What the log records: the last ${kept} of ${num(total)} check runs, in order` : "What the log records, in order",
-      early > 0 ? h("span", { class: "recorded-early" }, ` (last 3 of ${items.length} lines)`) : false,
+      { class: early > 0 ? "brag-label muted has-early" : "brag-label muted" },
+      h("span", { class: "recorded-wide" }, total > kept ? `What the log records: the last ${kept} of ${num(total)} check runs, in order` : "What the log records, in order"),
+      early > 0 ? h("span", { class: "recorded-early" }, `What the log records: last 3 of ${items.length} lines${total > kept ? `, from the last ${kept} of ${num(total)} check runs` : ""}`) : false,
     ),
     items.length === 0
       ? h("p", { class: "recorded-list" }, "No test, lint or build command, and no commit.")
