@@ -40,4 +40,17 @@ One language. Nothing is stored, so there is no returning-visitor state.
 | 26 | Everything in the page's language | PASS | The file input is hidden behind a labelled button and a status line; no browser validation bubble is used. |
 | 27 | Wording reads as written by a person | PASS | "1 step, 1 request", "1 finding.", sizes named in megabytes, numbers in one locale, each message beside what it is about. |
 
-Not done: the independent Designer pass the skill asks for before any public link. This run was by the builder.
+## After the independent review, 19 November 2026
+
+The review came back DO NOT SHIP with seven must-fix items; all were fixed, and the table above describes the
+build before them. Runner on the fixed build: workflow `walk`, run 44420396967, commit `8e579ad`, served commit
+equal, GATE RUNNER: PASS. The runner gained a state for a log over the step limit and checks for: the limit notice
+in three places, tape marks at least 10 px at 390 (11), inline links at least 44 px high, the rules table with no
+inner sideways scroll at 390 (right edge 373 of 390) and shown once scrolled to with motion on, the tape and count
+buttons and the slider reading every step, and line width measured in the element's own ch. First screen at 390:
+61% of the working panel, tape bottom 792. Largest paint 712 ms, layout shift 0.
+
+Two runner passes failed on the way (18 checks each time) and one defect was found only on the phone walk: a
+reveal that waited for a quarter of a block to be in view left the long rules table invisible on a phone.
+
+Not done: a second independent pass on the fixed build. The first Designer pass the skill asks for before any public link. This run was by the builder.
