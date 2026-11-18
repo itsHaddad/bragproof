@@ -30,7 +30,7 @@ function rates(): string {
 export function home(example: Report, origin: string): string {
   const megabytes = LIMITS.bytes / 1024 / 1024;
   return `<section class="hero page"><div class="split">
-<div>
+<div class="hero-text">
 <h1 data-enter="0">The diff shows the code. The log shows the rest.</h1>
 <p class="lead" data-enter="1">Give it a coding agent's session log. See each check skipped, key file opened and package brought in, with the line that shows it.</p>
 <div class="actions" data-enter="2">
@@ -40,12 +40,14 @@ export function home(example: Report, origin: string): string {
 <button class="btn btn-plain" id="back" type="button" hidden>Back to the example</button>
 </div>
 <p class="where" data-enter="3">${toHtml(icon("lock"))}<span>Read on this device and sent nowhere. Claude Code keeps its logs in <code>~/.claude/projects</code>. Up to ${megabytes}&nbsp;MB.</span></p>
+<div class="feedback">
 <div class="paste" id="paste" hidden>
 <div class="field"><label for="paste-text">Lines from a session log</label><textarea class="input" id="paste-text" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="error"></textarea></div>
 <button class="btn btn-plain" id="paste-read" type="button">Read this text</button>
 </div>
 <p class="status" id="status" role="status"></p>
 <p class="error" id="error" role="alert" hidden></p>
+</div>
 </div>
 <div class="panel" id="panel" tabindex="-1" data-enter="2" aria-label="Report">${toHtml(panel(example, "Example session", 0, true))}</div>
 </div></section>
@@ -60,7 +62,7 @@ ${rates()}
 <div>
 <h2 id="h-rates">How often agents do this</h2>
 <p>These rules were run over ${M.read} real sessions that their authors made public. ${M.anyShown.sessions} of them (${pct(M.anyShown.percent)}) had at least one finding, and ${M.notInDiff.sessions} (${pct(M.notInDiff.percent)}) had one that no diff can show. ${M.askedFirst.no} ran with permission prompts switched off.</p>
-<p><a href="/method/">How this was measured, and how to run it again</a></p>
+<p><a class="more" href="/method/">How this was measured, and how to run it again</a></p>
 </div>
 </div></section>
 
@@ -135,7 +137,7 @@ export function method(origin: string): string {
 <p>The page has no place to send a log to. It is a set of files with no server code behind them, and its content policy forbids the script from connecting to any address, this one included. You can load the page, switch the network off, and it still works.</p>
 <p>Nothing is stored on your device either. Closing the tab forgets the log.</p>
 <p>Lines quoted from a log are shown as text. Hidden and direction-changing characters are replaced by their code, so what you read is what is there.</p>
-<p><a href="${sourceLink(origin, "SECURITY.md")}">Security notes and threat model</a></p>
+<p><a class="more" href="${sourceLink(origin, "SECURITY.md")}">Security notes and threat model</a></p>
 </div>
 </div></section>`;
 }

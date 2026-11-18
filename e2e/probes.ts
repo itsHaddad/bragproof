@@ -158,6 +158,7 @@ export async function system(browser: Browser): Promise<void> {
     const page = await ctx.newPage();
     for (const path of ["/", "/method/", "/no-such-page"]) {
       await page.goto(BASE + path, { waitUntil: "load" });
+      await page.evaluate(() => document.fonts.ready);
       const m = await page.evaluate(() => {
         const px = (el: Element | null, prop: string) => Number.parseFloat(getComputedStyle(el as Element).getPropertyValue(prop));
         const h1 = document.querySelector("h1");

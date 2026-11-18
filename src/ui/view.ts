@@ -28,14 +28,14 @@ export function readout(report: Report, selected: number): El {
     h("p", { class: "readout-kind" }, mark(group.shape), group.title, h("span", { class: "readout-count num" }, `${selected + 1} of ${report.findings.length}`)),
     h("p", { class: "readout-fact" }, f.fact),
     h("pre", { class: "evidence" }, f.evidence),
-    h("p", { class: "muted readout-where num" }, `Step ${f.step.toLocaleString("en-GB")} of ${report.session.steps.toLocaleString("en-GB")}. ${group.means}`),
+    h("p", { class: "muted readout-where num" }, `Step ${f.step.toLocaleString("en-GB")} of ${report.session.steps.toLocaleString("en-GB")}. `, h("span", { class: "readout-means" }, group.means)),
   );
 }
 
 function kinds(report: Report): El {
   const count = (letter: string) => [...report.session.track].filter((c) => c.toLowerCase() === letter).length;
-  const rows: [string, string, number][] = [["tall", "commands", count("s")], ["mid", "edits", count("e")], ["low", "reads", count("r")]];
-  return h("ul", { class: "kinds" }, ...rows.map(([cls, label, n]) => h("li", {}, h("span", { class: `kind-tick kind-${cls}`, "aria-hidden": "true" }), h("span", { class: "num" }, `${n.toLocaleString("en-GB")} ${label}`))));
+  const rows: [string, string, string, number][] = [["tall", "command", "commands", count("s")], ["mid", "edit", "edits", count("e")], ["low", "read", "reads", count("r")]];
+  return h("ul", { class: "kinds" }, ...rows.map(([cls, one, many, n]) => h("li", {}, h("span", { class: `kind-tick kind-${cls}`, "aria-hidden": "true" }), h("span", { class: "num" }, plural(n, one, many)))));
 }
 
 function counts(report: Report): El {
