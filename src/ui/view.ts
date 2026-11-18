@@ -80,10 +80,10 @@ function recorded(report: Report): El {
   return h(
     "div",
     { class: "recorded" },
-    h("p", { class: "brag-label muted" }, "What the log records, in order"),
+    h("p", { class: "brag-label muted" }, "What the log records, in order", early > 0 ? h("span", { class: "recorded-early" }, ` (last 3 of ${items.length}; all on a wider screen)`) : false),
     items.length === 0
       ? h("p", { class: "recorded-list" }, "No test, lint or build command, and no commit.")
-      : h("ol", { class: "recorded-list" }, early > 0 ? h("li", { class: "recorded-early" }, `${plural(early, "earlier line", "earlier lines")}, shown on a wider screen, then:`) : false, ...items.map((text, i) => h("li", { class: i < early ? "is-early" : "" }, text))),
+      : h("ol", { class: "recorded-list" }, ...items.map((text, i) => h("li", { class: i < early ? "is-early" : "" }, text))),
     h("p", { class: "recorded-note muted" }, "Exit states as logged. Whether the message is true is not judged."),
   );
 }

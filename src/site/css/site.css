@@ -37,8 +37,9 @@ main p a:not(.btn):not(.more), main li a:not(.tab) { display: inline-block; padd
 /* On a phone the left column's parts become items of the one column, so the working panel can sit directly under
    the buttons and the note about where logs live can follow it. */
 @media (max-width: 59.99rem) {
-  .hero { padding-top: var(--s-5); }
-  .hero .split { gap: var(--s-4); }
+  .hero { padding-top: var(--s-4); }
+  .hero .split { gap: var(--s-3); }
+  .hero h1 { font-size: 2rem; }
   .hero .split > .hero-text { display: contents; }
   .hero h1, .hero .lead, .actions { margin-bottom: 0; }
   .hero .lead { font-size: var(--step-0); }

@@ -132,6 +132,8 @@ export async function keyboard(browser: Browser): Promise<void> {
   await page.focus("button.count[data-group='undo']");
   await page.keyboard.press("Enter");
   check((await page.textContent(".readout-count")) === "6 of 6", "keyboard: Enter on a count goes to the first finding of that kind");
+  await page.locator("#tape").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
   const box = await page.locator("#tape").boundingBox();
   if (box) await page.mouse.click(box.x + box.width * 0.02, box.y + box.height * 0.8);
   check(((await page.textContent("#readout")) ?? "").includes("Step 1 of 34"), "tape: pressing a tick reads that step");

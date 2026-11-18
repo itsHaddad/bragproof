@@ -7,7 +7,7 @@
    a person uses is inside the first screen. */
 @media (max-width: 59.99rem) {
   .panel { background: none; border: 0; padding: 0; }
-  .panel-main { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-4); }
+  .panel-main { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); }
   .brag-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .recorded-note, .recorded-list .is-early, .kinds-wide { display: none; }
   .panel-main { gap: var(--s-2); }
@@ -22,13 +22,11 @@
 .brag { border-left: 3px solid var(--line); padding-left: var(--s-3); }
 .brag-label { font-size: var(--step--1); }
 .recorded { border-left: 3px solid var(--text); padding-left: var(--s-3); }
-.recorded-list { list-style: none; margin: 0; padding: 0; font: var(--step--1) / 1.5 var(--font-mono); overflow-wrap: anywhere; max-width: none; }
-.recorded-list li { max-width: none; }
+.recorded-list { list-style: none; margin: 0; padding: 0; font: var(--step--1) / 1.5 var(--font-mono); overflow-wrap: anywhere; }
 .recorded-note { font-size: var(--step--1); }
-.recorded-early { font-family: var(--font-text); color: var(--muted); }
 @media (min-width: 60rem) { .recorded-early, .kinds-narrow { display: none; } }
 .tape { cursor: pointer; }
-.readout-plain { color: var(--text); }
+.readout-kind.readout-plain { color: var(--muted); }
 .readout-where { max-width: var(--measure); }
 .note-cut { color: var(--text); font-weight: 600; }
 .cut-line { display: block; font-family: var(--font-text); font-weight: 600; }
