@@ -9,10 +9,11 @@ import { shellFindings } from "./rules-shell.ts";
 import type { Finding, Report, Session } from "./types.ts";
 
 /** Changes whenever a rule changes what it reports. A report id is only comparable under the same rules. */
-export const RULES = "2026-11-18.1";
+export const RULES = "2026-11-18.2";
 
-/** Rules measured too imprecise to show. See docs/MEASUREMENT.md for the numbers that put them here. */
-export const SWITCHED_OFF: ReadonlySet<string> = new Set<string>([]);
+/** Rules measured too imprecise to show. See docs/MEASUREMENT.md for the numbers that put them here:
+ * of 30 "said the tests pass" findings read by hand, 17 were wrong and at most 13 could be right. */
+export const SWITCHED_OFF: ReadonlySet<string> = new Set<string>(["said-no-run", "said-last-failed"]);
 
 const LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1|.*\.local$|.*\.test$|example\.(com|org)$)/;
 

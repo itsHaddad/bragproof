@@ -44,8 +44,11 @@ export function simples(line: string): Simple[] {
   let quoted = false;
   let open = false;
   let start = 0;
+  // After a redirection (`> file`, `2> log`) the next word is where output goes, not something the command is given.
+  let dropNext = false;
   const endWord = () => {
-    if (open) words.push({ text: word, quoted });
+    if (open && dropNext) dropNext = false;
+    else if (open) words.push({ text: word, quoted });
     word = "";
     quoted = false;
     open = false;
@@ -92,8 +95,15 @@ export function simples(line: string): Simple[] {
       start = i;
       continue;
     }
+    const redirect = open ? null : /^(?:\d*|&)(?:>>|>\||>|<<<|<<-?|<)(&\d|&-)?/.exec(text.slice(i, i + 8));
+    if (redirect) {
+      dropNext = redirect[1] === undefined;
+      i += redirect[0].length;
+      continue;
+    }
     const op = OPERATORS.find((o) => text.startsWith(o, i));
     if (op) {
+      dropNext = false;
       endSimple(op === "\n" ? ";" : op, i);
       i += op.length;
       continue;

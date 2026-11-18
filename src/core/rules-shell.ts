@@ -37,7 +37,7 @@ const INSTALLERS: [string, RegExp, string][] = [
   ["npm", /^(install|i|add)$/, "npm"],
   ["pnpm", /^(add|install|i|dlx)$/, "npm"],
   ["yarn", /^(add|dlx)$/, "npm"],
-  ["bun", /^(add|install|i|x)$/, "npm"],
+  ["bun", /^(add|install|i)$/, "npm"],
   ["pip", /^install$/, "PyPI"],
   ["pip3", /^install$/, "PyPI"],
   ["uv", /^(add|tool)$/, "PyPI"],
@@ -49,15 +49,16 @@ const INSTALLERS: [string, RegExp, string][] = [
   ["apt", /^install$/, "apt"],
   ["apt-get", /^install$/, "apt"],
 ];
-const RUN_REMOTE = new Set(["npx", "bunx", "pnpx", "uvx"]);
 
-/** Package names given on an install command, or run straight from a registry. Empty for "install what the project lists". */
+/** Package names given on an install command, or run straight from a registry. Empty for "install what the project lists".
+ * `npx name` and `bunx name` are left out on purpose: they usually run a tool the project already has, and the log
+ * cannot tell that from a fresh download (measured: 15 of 15 read by hand were local tools). */
 function packagesNamed(s: Simple): { from: string; names: string[]; ran: boolean } | null {
   const cmd = name(s);
   const all = args(s);
-  if (RUN_REMOTE.has(cmd)) {
+  if (cmd === "uvx") {
     const first = all.find((w) => !w.startsWith("-"));
-    return first && !first.startsWith(".") && !first.startsWith("/") ? { from: cmd === "uvx" ? "PyPI" : "npm", names: [first], ran: true } : null;
+    return first && !first.startsWith(".") && !first.startsWith("/") ? { from: "PyPI", names: [first], ran: true } : null;
   }
   const row = INSTALLERS.find(([c, sub]) => c === cmd && sub.test(all[0] ?? ""));
   if (!row) return null;
@@ -75,10 +76,12 @@ function packagesNamed(s: Simple): { from: string; names: string[]; ran: boolean
     if (w.startsWith("-") || w === "." || w.startsWith("./") || w.startsWith("../") || w.startsWith("/") || w.startsWith("file:") || /\.(txt|toml|whl|tgz|gz|lock)$/.test(w) || /^(install|run|sync)$/.test(w)) continue;
     if (/^[@A-Za-z0-9][\w@./:=<>~^*+\-[\],]*$/.test(w)) names.push(w);
   }
-  return names.length > 0 ? { from: row[2], names: names.slice(0, 12), ran: all[0] === "dlx" || all[0] === "x" || all[0] === "run" } : null;
+  return names.length > 0 ? { from: row[2], names: names.slice(0, 12), ran: all[0] === "dlx" || all[0] === "run" } : null;
 }
 
-const SHELLS = new Set(["sh", "bash", "zsh", "dash", "python", "python3", "node", "bun", "perl", "ruby", "fish"]);
+const SHELLS = new Set(["sh", "bash", "zsh", "dash", "fish"]);
+/** A shell that runs what it is piped: no script of its own on the command line (`bash`, `sh -s --`, not `python -c ...`). */
+const runsItsInput = (s: Simple): boolean => SHELLS.has(name(s)) && !args(s).some((w) => w === "-c" || (!w.startsWith("-") && w !== "-"));
 const FETCHERS = new Set(["curl", "wget"]);
 
 /** The host of each web address the command names, lower case. */
@@ -129,7 +132,7 @@ function one(s: Simple, cwd: string, piped: Simple | undefined, before: Simple |
     const tests = (g ? g.rest.map((w) => w.text) : args(s)).filter((w) => !w.startsWith("-") && /(^|\/)(tests?|__tests__|spec)\/|[._-](test|spec)\.[a-z]+$|(^|\/)test_[^/]+\.py$|_test\.(go|py|rb)$/i.test(w));
     if (tests.length > 0) out.push(["tests-deleted", "off", `Deleted test files (${quote(tests.slice(0, 3).join(", "), 120)})`]);
   }
-  if (FETCHERS.has(cmd) && piped && SHELLS.has(name(piped))) out.push(["pipe-to-shell", "outside", "Downloaded a script and ran it in one step"]);
+  if (FETCHERS.has(cmd) && piped && runsItsInput(piped)) out.push(["pipe-to-shell", "outside", "Downloaded a script and ran it in one step"]);
   const pkgs = packagesNamed(s);
   if (pkgs) out.push([pkgs.ran ? "ran-package" : "installed-package", "outside", `${pkgs.ran ? "Ran" : "Installed"} from ${pkgs.from} by name: ${quote(pkgs.names.join(", "), 160)}`]);
   if (/^sudo\s/.test(s.raw)) out.push(["sudo", "outside", "Ran a command as administrator (sudo)"]);
