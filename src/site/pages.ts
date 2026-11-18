@@ -27,6 +27,11 @@ function rates(): string {
   return `<div class="wide-table" data-reveal><table class="rates rules-table"><thead><tr><th scope="col">Kind of finding</th><th scope="col"><span class="visually-hidden">Share as a bar</span></th><th scope="col" class="num">Sessions</th><th scope="col" class="num">Share</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+/** One row of the hand-reading table: what was read, a bar for the share that held, and the count. */
+function held(what: string, n: number, of: number, note: string): string {
+  return `<tr><td>${esc(what)}</td><td class="bar-cell"><svg class="bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="fill-x" width="${Math.round((n / of) * 1000) / 10}" height="10"/></svg></td><td class="num">${n} of ${of}${note ? `<br><span class="muted">${esc(note)}</span>` : ""}</td></tr>`;
+}
+
 export function home(example: Report, origin: string): string {
   const megabytes = LIMITS.bytes / 1024 / 1024;
   return `<section class="hero page"><div class="split">
@@ -93,12 +98,15 @@ export function method(origin: string): string {
   }).join("");
   return `<section class="hero page"><div class="split">
 <div>
-<h1 data-enter="0">How it works, and how far to trust it</h1>
+<h1 data-enter="0">How far to trust it</h1>
+<p class="lead" data-enter="1">Each rule looks for one thing a session log can show beyond doubt, such as a commit made with its checks off. A finding is a fact with its line. There is no score.</p>
+<p class="muted" data-enter="2">Only Claude Code session logs are read for now. Other formats are refused with a message.</p>
 </div>
-<div data-enter="1">
-<p class="lead">Each rule looks for one thing a session log can show beyond doubt, such as a commit made with its checks off. A finding is a fact with its line. There is no score.</p>
-<p class="muted">The page reads Claude Code session logs. Other agents' logs are not read yet and are refused with a message.</p>
-</div>
+<div class="wide-table" data-enter="2"><table class="rates"><thead><tr><th scope="col">Read by hand against the log</th><th scope="col"><span class="visually-hidden">Share as a bar</span></th><th scope="col" class="num">Held</th></tr></thead><tbody>
+${held("Checks skipped or switched off, key files opened", READ_BY_HAND.primary.held, READ_BY_HAND.primary.read, "")}
+${held("Brought in, hard to undo (before three fixes)", READ_BY_HAND.other.held, READ_BY_HAND.other.read, "")}
+${held("“Said the tests pass”, not shown in the log", READ_BY_HAND.said.heldAtMost, READ_BY_HAND.said.read, "at most; switched off")}
+</tbody></table><p class="caption">How many findings, drawn at random, were what they said. The reading was done by the builder, a language model, and not by an outside person: treat it as a first check.</p></div>
 </div></section>
 
 <section class="section page" aria-labelledby="h-rules">
@@ -110,16 +118,19 @@ export function method(origin: string): string {
 <div class="prose">
 <h2 id="h-measured">How the numbers were made</h2>
 <p>${M.drawn} sessions were drawn at random, with a fixed seed, from the ${M.listed.toLocaleString("en-GB")} public traces of the SWE-chat dataset. ${M.read} were Claude Code logs with at least one step and were read; the rest were another agent's format or empty.</p>
-<p>Then findings were drawn at random and read by hand against the log. The reading was done by the builder, a language model, and not by an outside person. Treat it as a first check.</p>
-<p>One public repository workflow does the drawing and counting: <a href="${sourceLink(origin, ".github/workflows/measure.yml")}">measure.yml</a>. The pass marks were written down before the first run: <a href="${sourceLink(origin, "docs/RETHINK.md")}">the plan</a>, <a href="${sourceLink(origin, "docs/MEASUREMENT.md")}">the result</a>.</p>
+<p>${M.k1.sessions} of the ${M.read} (${pct(M.k1.percent)}) had a check skipped or switched off, or a key file opened. Then findings were drawn at random and read against the log; the table at the top of this page is the result.</p>
+<p>The pass marks were written down before the first run: <a href="${sourceLink(origin, "docs/RETHINK.md")}">the plan</a>, <a href="${sourceLink(origin, "docs/MEASUREMENT.md")}">the result</a>.</p>
 </div>
-<div class="wide-table" data-reveal><table class="rates"><thead><tr><th scope="col">What was checked</th><th scope="col" class="num">Result</th></tr></thead><tbody>
-<tr><td>Sessions with a check skipped or switched off, or a key file opened</td><td class="num">${M.k1.sessions} of ${M.read} (${pct(M.k1.percent)})</td></tr>
-<tr><td>Those findings, read by hand: the action happened as stated</td><td class="num">${READ_BY_HAND.primary.held} of ${READ_BY_HAND.primary.read}</td></tr>
-<tr><td>Other findings (brought in, hard to undo), read by hand, before three fixes</td><td class="num">${READ_BY_HAND.other.held} of ${READ_BY_HAND.other.read}</td></tr>
-<tr><td>&ldquo;Said the tests pass&rdquo; with no passing run in the log: held at most</td><td class="num">${READ_BY_HAND.said.heldAtMost} of ${READ_BY_HAND.said.read}, switched off</td></tr>
-<tr><td>Hidden text shown to the agent</td><td class="num">0 of ${M.read}</td></tr>
-</tbody></table><p class="caption">Sessions come from people who chose to publish their logs, and several come from the same few projects. Other people's rates will differ.</p></div>
+<div class="card" data-reveal>
+<dl class="fingerprint">
+<dt>Sessions</dt><dd class="mono">cfahlgren1/SWE-chat, traces (ODC-BY)</dd>
+<dt>Seed</dt><dd class="mono">${esc(M.seed)}</dd>
+<dt>Drawn, read</dt><dd class="mono">${M.drawn}, ${M.read}</dd>
+<dt>Measured at commit</dt><dd class="mono">${esc(M.commit)}</dd>
+</dl>
+<p class="command">bun scripts/measure.ts ${M.drawn} ${esc(M.seed)}</p>
+<p class="caption">The same job runs in the open as <a href="${sourceLink(origin, ".github/workflows/measure.yml")}">measure.yml</a>. The sessions come from people who chose to publish their logs, several from the same few projects. Other people's rates will differ.</p>
+</div>
 </div></section>
 
 <section class="section page" aria-labelledby="h-cannot"><div class="split flip">

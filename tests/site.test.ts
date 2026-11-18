@@ -5,6 +5,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import measured from "../docs/measurement.json" with { type: "json" };
 import { analyze, RULES, SWITCHED_OFF } from "../src/core/analyze.ts";
 import { CONTENT_POLICY, headersFile, SECURITY_HEADERS } from "../src/site/headers.ts";
+import { READ_BY_HAND } from "../src/site/pages.ts";
 import { RULE_TEXT } from "../src/site/rules-text.ts";
 
 const dist = (path: string) => Bun.file(`dist${path}`).text();
@@ -85,7 +86,9 @@ test("numbers on the pages are the ones in the measurement file", async () => {
   expect(home).toContain(`over ${measured.read} real sessions`);
   expect(home).toContain(`${measured.anyShown.sessions} of them (${measured.anyShown.percent.toFixed(1)}%)`);
   expect(home).toContain(`${measured.notInDiff.sessions} (${measured.notInDiff.percent.toFixed(1)}%)`);
-  expect(method).toContain(`${measured.k1.sessions} of ${measured.read} (${measured.k1.percent.toFixed(1)}%)`);
+  expect(method).toContain(`${measured.k1.sessions} of the ${measured.read} (${measured.k1.percent.toFixed(1)}%)`);
+  expect(method).toContain(`${READ_BY_HAND.primary.held} of ${READ_BY_HAND.primary.read}`);
+  expect(method).toContain(`${READ_BY_HAND.said.heldAtMost} of ${READ_BY_HAND.said.read}`);
   expect(method).toContain(measured.commit.slice(0, 7));
 });
 

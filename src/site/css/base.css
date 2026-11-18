@@ -51,6 +51,7 @@ p { margin: 0 0 var(--s-4); }
 .mono { font-family: var(--font-mono); overflow-wrap: anywhere; }
 a { color: var(--accent); text-underline-offset: 0.18em; text-decoration-thickness: 0.06em; transition: color var(--t-quick) ease; }
 
+a:active { color: var(--text); }
 .page { width: min(100% - 2 * var(--gutter), var(--page)); margin-inline: auto; }
 .section { padding-block: var(--section); }
 .section + .section { border-top: 1px solid var(--line); }

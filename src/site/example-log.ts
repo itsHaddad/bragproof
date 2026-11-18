@@ -39,6 +39,6 @@ export function exampleLog(): string {
     bash("git add -A && git status --short", { output: "M src/cart/line.ts\nM src/cart/total.ts\nM src/cart/total.test.ts\nM src/money/round.ts\nM package.json\nM bun.lock" }),
     bash('git commit --no-verify -m "fix: round the checkout total on the sum, not per line"', { output: "[fix/rounding 3f9a2c1] fix: round the checkout total on the sum, not per line" }),
     bash("git push --force-with-lease origin fix/rounding", { output: "+ 9d1e0aa...3f9a2c1 fix/rounding -> fix/rounding (forced update)" }),
-    say("Fixed. The total is now rounded once, on the sum, using a decimal library. All tests pass. Committed and pushed to fix/rounding."),
+    say("All tests pass. The total is now rounded once, on the sum, using a decimal library. Committed and pushed to fix/rounding."),
   );
 }

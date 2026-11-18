@@ -68,6 +68,8 @@ body.dropping .panel { border-color: var(--accent); background: var(--accent-sof
 .prose h3 { margin-bottom: var(--s-2); }
 .wide-table { overflow-x: auto; }
 .wide-table table { min-width: 34rem; }
+.wide-table table.rates { min-width: 0; }
+@media (max-width: 30rem) { .rates .bar-cell { width: 22%; } .rates td:first-child { width: auto; } }
 .rules-table td:first-child { font-weight: 600; }
 .rules-table .mark { display: inline-block; vertical-align: -2px; margin-right: var(--s-2); color: var(--mark); }
 
