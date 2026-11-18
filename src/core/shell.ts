@@ -103,8 +103,8 @@ export function simples(line: string): Simple[] {
     }
     const op = OPERATORS.find((o) => text.startsWith(o, i));
     if (op) {
-      dropNext = false;
       endSimple(op === "\n" ? ";" : op, i);
+      dropNext = false;
       i += op.length;
       continue;
     }

@@ -6,6 +6,7 @@ import { saidFindings } from "./claims.ts";
 import { parseSession } from "./parse.ts";
 import { editFindings } from "./rules-edit.ts";
 import { shellFindings } from "./rules-shell.ts";
+import { quote } from "./text.ts";
 import type { Finding, Report, Session } from "./types.ts";
 
 /** Changes whenever a rule changes what it reports. A report id is only comparable under the same rules. */
@@ -39,13 +40,18 @@ export function findingsOf(session: Session, all = false): { findings: Finding[]
   return { findings: shown.slice(0, 2_000), hosts: [...hosts].filter((h) => !LOCAL.test(h)).sort().slice(0, 200) };
 }
 
+const LETTER: Record<string, string> = { shell: "s", edit: "e", read: "r", fetch: "f", other: "o" };
+
 export async function analyze(text: string): Promise<Report> {
   const session = parseSession(text);
   const { findings, hosts } = findingsOf(session);
+  const bytes = new TextEncoder().encode(text);
+  const track = session.steps.map((s) => (s.failed ? (LETTER[s.kind] ?? "o").toUpperCase() : (LETTER[s.kind] ?? "o"))).join("");
+  const closing = quote(session.says[session.says.length - 1]?.text ?? "", 220);
   const body = {
     rules: RULES,
-    input: { sha256: await sha256Hex(text), bytes: new TextEncoder().encode(text).length, lines: session.lines, skippedLines: session.skippedLines },
-    session: { steps: session.steps.length, turns: session.turns, models: session.models, askedFirst: session.askedFirst, start: session.start, end: session.end },
+    input: { sha256: await sha256Hex(bytes), bytes: bytes.length, lines: session.lines, skippedLines: session.skippedLines },
+    session: { steps: session.steps.length, turns: session.turns, models: session.models.map((m) => quote(m, 60)), askedFirst: session.askedFirst, start: quote(session.start, 40), end: quote(session.end, 40), track, closing },
     hosts,
     findings,
   };

@@ -59,7 +59,18 @@ export interface Finding {
 export interface Report {
   rules: string;
   input: { sha256: string; bytes: number; lines: number; skippedLines: number };
-  session: { steps: number; turns: number; models: string[]; askedFirst: boolean | null; start: string; end: string };
+  session: {
+    steps: number;
+    turns: number;
+    models: string[];
+    askedFirst: boolean | null;
+    start: string;
+    end: string;
+    /** One letter per step, in order: s command, e edit, r read, f web request, o other. Capital when the step failed. */
+    track: string;
+    /** The agent's last message, shortened. Quoted data. */
+    closing: string;
+  };
   hosts: string[];
   findings: Finding[];
   /** SHA-256 over the canonical form of everything above: the same file and rules give the same id anywhere. */

@@ -40,7 +40,7 @@ const INSTALLERS: [string, RegExp, string][] = [
   ["bun", /^(add|install|i)$/, "npm"],
   ["pip", /^install$/, "PyPI"],
   ["pip3", /^install$/, "PyPI"],
-  ["uv", /^(add|tool)$/, "PyPI"],
+  ["uv", /^add$/, "PyPI"],
   ["pipx", /^(install|run)$/, "PyPI"],
   ["cargo", /^(add|install)$/, "crates.io"],
   ["go", /^(get|install)$/, "Go modules"],
@@ -114,7 +114,7 @@ function one(s: Simple, cwd: string, piped: Simple | undefined, before: Simple |
     if (g.sub === "push" && (hasFlag({ ...s, words: [s.words[0]!, ...g.rest] }, "--force", "f") || g.rest.some((w) => w.text.startsWith("--force-with-lease") || /^\+\S/.test(w.text)))) out.push(["force-push", "undo", "Force-pushed: the branch on the server was overwritten"]);
     if (g.sub === "reset" && g.rest.some((w) => w.text === "--hard")) out.push(["reset-hard", "undo", "Threw away uncommitted work (git reset --hard)"]);
     if (g.sub === "clean" && g.rest.some((w) => /^-[A-Za-z]*f/.test(w.text))) out.push(["git-clean", "undo", "Deleted untracked files (git clean)"]);
-    if (g.sub === "checkout" && g.rest.some((w) => w.text === "--") && g.rest.some((w) => w.text === ".")) out.push(["checkout-all", "undo", "Threw away uncommitted changes to every file"]);
+    if (g.sub === "checkout" && g.rest[0]?.text === "--" && g.rest[1]?.text === ".") out.push(["checkout-all", "undo", "Threw away uncommitted changes to every file"]);
     if (g.sub === "branch" && g.rest.some((w) => w.text === "-D")) out.push(["branch-delete", "undo", "Deleted a branch without checking it was merged"]);
     if (g.sub === "stash" && ["drop", "clear"].includes(g.rest[0]?.text ?? "")) out.push(["stash-drop", "undo", "Dropped stashed work"]);
   }

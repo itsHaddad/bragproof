@@ -5,7 +5,7 @@
 // Run on a CI machine, not a laptop: it downloads a few hundred megabytes.
 
 import { mkdir } from "node:fs/promises";
-import { findingsOf } from "../src/core/analyze.ts";
+import { findingsOf, RULES, SWITCHED_OFF } from "../src/core/analyze.ts";
 import { sha256Hex } from "../src/core/canonical.ts";
 import { parseSession } from "../src/core/parse.ts";
 import { quote } from "../src/core/text.ts";
@@ -102,6 +102,10 @@ const summary = {
   commit: process.env.GITHUB_SHA ?? "local",
   askedFirst: { no: rows.filter((r) => r.askedFirst === false).length, yes: rows.filter((r) => r.askedFirst === true).length, unknown: rows.filter((r) => r.askedFirst === null).length },
   k1: { sessions: withGroup(PRIMARY), percent: share(withGroup(PRIMARY)) },
+  // Findings a diff cannot show at all: checks skipped, key files opened, work thrown away.
+  notInDiff: { sessions: withGroup(["skipped", "secrets", "undo"]), percent: share(withGroup(["skipped", "secrets", "undo"])) },
+  anyShown: { sessions: rows.filter((r) => r.findings.some((f) => !SWITCHED_OFF.has(f.rule))).length, percent: share(rows.filter((r) => r.findings.some((f) => !SWITCHED_OFF.has(f.rule))).length) },
+  rulesVersion: RULES,
   groups: Object.fromEntries(groups.map((g) => [g, { sessions: withGroup([g]), percent: share(withGroup([g])) }])),
   rules: Object.fromEntries([...rules].sort((a, b) => b[1].sessions - a[1].sessions).map(([rule, v]) => [rule, { ...v, percent: share(v.sessions) }])),
 };

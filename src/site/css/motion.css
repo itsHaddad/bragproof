@@ -1,0 +1,83 @@
+/* Webdesign motion patterns. Needs tokens.css. Works under a strict content policy (no inline styles needed).
+   Rules: animate transform, opacity, clip-path and stroke only; start from a visible resting state when scripts are off;
+   every pattern has a reduced-motion form at the bottom of this file. */
+
+/* 1. Page-load sequence: ONE authored moment. Mark up to about six elements in the first screen with data-enter;
+      the order comes from --i, set by nth-child here (no inline styles). */
+@keyframes enter { from { opacity: 0; transform: translateY(10px); } }
+[data-enter] { animation: enter var(--t-slow) var(--ease-out) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+[data-enter="1"] { --i: 1; } [data-enter="2"] { --i: 2; } [data-enter="3"] { --i: 3; } [data-enter="4"] { --i: 4; } [data-enter="5"] { --i: 5; }
+
+/* 2. Scroll reveal for a DEMONSTRATION, not for every section. motion.ts adds .wait only to elements that are still
+      below the screen when it runs, and removes it when they are 25% in view. So nothing is hidden without scripts,
+      and nothing already on screen blinks when a late script arrives. */
+[data-reveal] { transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out); }
+[data-reveal].wait { opacity: 0; transform: translateY(14px); }
+/* Children that build up (cells, bars, list rows): scale from 0.9, never from 0 (ref: status cells, 500 ms, ease-out). */
+[data-reveal] [data-pop] { transition: opacity var(--t-slow) var(--ease-out), scale var(--t-slow) var(--ease-out); transition-delay: calc(var(--n, 0) * 30ms); }
+[data-reveal].wait [data-pop] { opacity: 0; scale: 0.9; }
+
+/* 2b. Scroll-linked progress with no script, where the browser supports it (a line that grows beside a list of steps). */
+@supports (animation-timeline: view()) {
+  @keyframes grow-y { from { transform: scaleY(0); } }
+  .scroll-line { transform-origin: top; animation: grow-y linear both; animation-timeline: view(); animation-range: entry 20% cover 60%; }
+}
+
+/* 3. Feedback. Hover only where there is a real pointer; press on everything pressable; focus never animated away. */
+.pressable { transition: transform var(--t-quick) var(--ease-out); touch-action: manipulation; }
+.pressable:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .lift { transition: transform var(--t-fast) var(--ease-out), border-color var(--t-quick) ease; }
+  .lift:hover { transform: translateY(-2px); border-color: var(--field-line); }
+}
+/* A choice that fills when picked (radio or checkbox inside a label). */
+.choice { transition: background-color var(--t-quick) ease, border-color var(--t-quick) ease; }
+.choice:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
+/* Messages arrive from where they belong, and can be interrupted (transition, not keyframes). */
+.toast { transition: opacity var(--t-medium) ease, transform var(--t-medium) var(--ease-out); }
+@starting-style { .toast { opacity: 0; transform: translateY(8px); } }
+/* An error shakes once, 6 px, so it is seen without being punished. */
+@keyframes nudge { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.nudge { animation: nudge var(--t-fast) ease-in-out 1; }
+
+/* 4. Charts and rings: draw the stroke, wipe the plot. pathLength="1" on the SVG element makes the dash maths trivial. */
+@keyframes draw { from { stroke-dashoffset: 1; } }
+/* Use fill-mode backwards, not both, on anything a later transition must still be able to change:
+   an animation that keeps filling forwards wins over the transition and the change jumps. */
+.draw { stroke-dasharray: 1; stroke-dashoffset: 0; animation: draw var(--t-hero) var(--ease-out) backwards; }
+@keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.wipe { animation: wipe var(--t-hero) var(--ease-out) both; }
+@keyframes pop { from { opacity: 0; scale: 0.6; } }
+.pop { transform-box: fill-box; transform-origin: center; animation: pop var(--t-medium) var(--ease-bounce) both; animation-delay: calc(var(--t-hero) * 0.7); }
+/* A bar or meter that fills: scale, not width, so nothing is laid out again. */
+@keyframes fill-x { from { transform: scaleX(0); } }
+.fill-x { transform-origin: left; animation: fill-x var(--t-slow) var(--ease-out) both; }
+/* Loading: the skeleton has the final size of what it replaces (ref: 320 px chart skeletons). */
+@keyframes pulse { 50% { opacity: 0.5; } }
+.skeleton { background: var(--surface-2); border-radius: var(--r-2); animation: pulse 2s ease-in-out infinite; }
+
+/* 5. View transitions between pages, in CSS only. Older browsers simply navigate.
+      Only when EVERY page a visitor can come from or go to carries this rule. If one side lacks it (a saved offline
+      copy from before the change, an error page), the browser aborts the transition and logs a page error
+      ("Transition was aborted ... opt-in disabled"). On a site with an offline worker, leave this block out and use
+      .screen-in instead. Found on the Nightsteady preview walk, 2026-11-18. */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: var(--t-quick) ease both vt-out; }
+::view-transition-new(root) { animation: var(--t-fast) var(--ease-out) both vt-in; }
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(6px); } }
+/* Give the one element that persists across pages (logo, hero object) a shared name so it travels. */
+.vt-brand { view-transition-name: brand; }
+/* A screen swapped by script (tabs, steps): a short entrance on the new content, keyed by a class the router sets. */
+@keyframes screen-in { from { opacity: 0; transform: translateY(6px); } }
+.screen-in { animation: screen-in var(--t-fast) var(--ease-out) both; }
+
+/* Reduced motion: keep colour and opacity feedback, drop movement, show the end state at once. Nothing stays hidden. */
+@media (prefers-reduced-motion: reduce) {
+  [data-enter], .draw, .wipe, .pop, .fill-x, .screen-in, .nudge, .scroll-line { animation: none; }
+  [data-reveal], [data-reveal].wait, [data-reveal] [data-pop], [data-reveal].wait [data-pop] { opacity: 1; transform: none; scale: 1; transition: none; }
+  .skeleton { animation: none; }
+  .btn:active, .pressable:active, .lift:hover { transform: none; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  html { scroll-behavior: auto; }
+}

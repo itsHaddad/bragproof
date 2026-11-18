@@ -78,6 +78,10 @@ test("hard to undo", async () => {
   expect(await rules(bash("rm -rf /home/dev/shop/dist"))).toEqual([]);
   expect(await rules(bash("rm -rf ~/projects/other"))).toEqual(["rm-outside"]);
   expect(await rules(bash("rm -rf /tmp/build-123"))).toEqual([]);
+  expect(await rules(bash('rm -rf docs/old/ 2>/dev/null; echo "cleaned"'))).toEqual([]);
+  expect(await rules(bash("git checkout -- ."))).toEqual(["checkout-all"]);
+  expect(await rules(bash("git checkout 78333b7f -- ."))).toEqual([]);
+  expect(await rules(bash('uv tool run --from our-tool python3 -c "import x"'))).toEqual([]);
 });
 
 test("text in invisible characters in a tool result is decoded and shown", async () => {
