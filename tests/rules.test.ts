@@ -137,7 +137,7 @@ test("edits to pipelines and settings are a neutral kind of their own, not a che
 
 test("what the log records about checks and commits is kept as exit states, with no judgement", async () => {
   const report = await analyze(log(user("go"), bash("bun test", { failed: true, output: "1 fail" }), bash("bun test", { output: "13 pass\n1 skip" }), bash("bun run lint", { failed: true }), bash("git commit --no-verify -m x"), say("All tests pass.")));
-  expect(report.checks.map((c) => [c.command, c.failed, c.lastLine])).toEqual([["bun test", true, "1 fail"], ["bun test", false, "1 skip"], ["bun run lint", true, ""]]);
+  expect(report.checks.map((c) => [c.command, c.failed, c.lastLine])).toEqual([["bun test", true, "1 fail"], ["bun test", false, "13 pass, 1 skip"], ["bun run lint", true, ""]]);
   expect(report.commits).toEqual({ made: 1, noVerify: 1 });
   expect(report.findings.map((f) => f.rule)).toEqual(["commit-no-verify"]);
 });

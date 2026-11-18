@@ -75,11 +75,15 @@ function recorded(report: Report): El {
   const state = (failed: boolean | null) => (failed === true ? "failed" : failed === false ? "ended normally" : "no result logged");
   const items = report.checks.map((c) => `${c.command}: ${state(c.failed)}${c.lastLine && c.failed === false ? ` (“${c.lastLine}”)` : ""}`);
   if (report.commits.made > 0) items.push(`${plural(report.commits.made, "commit", "commits")}, ${num(report.commits.noVerify)} with --no-verify`);
+  // On a phone only the last three lines are shown, with a count of the earlier ones, to keep the tape in view.
+  const early = Math.max(0, items.length - 3);
   return h(
     "div",
     { class: "recorded" },
     h("p", { class: "brag-label muted" }, "What the log records, in order"),
-    items.length === 0 ? h("p", { class: "recorded-list" }, "No test, lint or build command, and no commit.") : h("ol", { class: "recorded-list" }, ...items.map((text) => h("li", {}, text))),
+    items.length === 0
+      ? h("p", { class: "recorded-list" }, "No test, lint or build command, and no commit.")
+      : h("ol", { class: "recorded-list" }, early > 0 ? h("li", { class: "recorded-early" }, `${plural(early, "earlier line", "earlier lines")}, shown on a wider screen, then:`) : false, ...items.map((text, i) => h("li", { class: i < early ? "is-early" : "" }, text))),
     h("p", { class: "recorded-note muted" }, "Exit states as logged. Whether the message is true is not judged."),
   );
 }
@@ -100,7 +104,7 @@ export function panel(report: Report, label: string, selected: number, example: 
       report.session.closing ? h("div", { class: "brag" }, h("p", { class: "brag-label muted" }, "What the agent said at the end"), h("p", { class: "brag-text" }, `“${report.session.closing}”`)) : false,
       recorded(report),
       tape(report, selected, step),
-      kinds(report),
+      h("div", { class: "kinds-wide" }, kinds(report)),
       readout(report, selected, step),
       h(
         "div",
@@ -113,6 +117,7 @@ export function panel(report: Report, label: string, selected: number, example: 
     h(
       "div",
       { class: "panel-extra" },
+      h("div", { class: "kinds-narrow" }, kinds(report)),
       counts(report),
       example ? h("p", { class: "note" }, icon("note"), h("span", {}, `A made-up session, written to show the rules. It is busier than real ones: ${plural(n, "finding", "findings")} in ${plural(steps, "step", "steps")}, where most public sessions had none.`)) : false,
       asked === false ? h("p", { class: "note" }, icon("note"), h("span", {}, "This session ran with permission prompts switched off: the agent did not ask before each step.")) : false,

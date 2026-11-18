@@ -9,7 +9,9 @@
   .panel { background: none; border: 0; padding: 0; }
   .panel-main { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-4); }
   .brag-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .recorded-note { display: none; }
+  .recorded-note, .recorded-list .is-early, .kinds-wide { display: none; }
+  .panel-main { gap: var(--s-2); }
+  .readout { min-height: 0; }
   .readout { min-height: 9.5rem; }
   .readout-means { display: none; }
   .evidence { max-height: 4.6em; }
@@ -23,6 +25,8 @@
 .recorded-list { list-style: none; margin: 0; padding: 0; font: var(--step--1) / 1.5 var(--font-mono); overflow-wrap: anywhere; max-width: none; }
 .recorded-list li { max-width: none; }
 .recorded-note { font-size: var(--step--1); }
+.recorded-early { font-family: var(--font-text); color: var(--muted); }
+@media (min-width: 60rem) { .recorded-early, .kinds-narrow { display: none; } }
 .tape { cursor: pointer; }
 .readout-plain { color: var(--text); }
 .readout-where { max-width: var(--measure); }

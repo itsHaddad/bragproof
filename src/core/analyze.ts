@@ -25,7 +25,8 @@ export interface Read {
   commits: { made: number; noVerify: number };
 }
 
-const lastLine = (output: string): string => quote(output.trim().split("\n").filter((l) => l.trim()).pop() ?? "", 60);
+/** The end of what the command printed, on one line: where a test runner puts its totals. */
+const lastLine = (output: string): string => quote(output.trim().split("\n").filter((l) => l.trim()).slice(-3).join(", "), 60);
 
 export function findingsOf(session: Session, all = false): Read {
   const findings: Finding[] = [];
