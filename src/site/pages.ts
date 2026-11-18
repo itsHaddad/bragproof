@@ -24,7 +24,7 @@ function rates(): string {
     const v = M.groups[g.id] ?? { sessions: 0, percent: 0 };
     return `<tr><td>${toHtml(mark(g.shape))} ${esc(g.title)}</td><td class="bar-cell"><svg class="bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="fill-x" width="${Math.round((v.percent / top) * 1000) / 10}" height="10"/></svg></td><td class="num">${v.sessions} of ${M.read}</td><td class="num">${pct(v.percent)}</td></tr>`;
   }).join("");
-  return `<div class="wide-table" data-reveal><table class="rates rules-table"><caption class="visually-hidden">Share of ${M.read} public sessions with at least one finding of each kind</caption><thead><tr><th scope="col">Kind of finding</th><th scope="col"><span class="visually-hidden">Share as a bar</span></th><th scope="col" class="num">Sessions</th><th scope="col" class="num">Share</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="wide-table" data-reveal><table class="rates rules-table"><caption class="caption below">Share of ${M.read} public sessions with at least one finding of each kind. Bars are relative to the most frequent kind.</caption><thead><tr><th scope="col">Kind of finding</th><th scope="col"><span class="visually-hidden">Share as a bar</span></th><th scope="col" class="num">Sessions</th><th scope="col" class="num">Share</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 /** One row of the hand-reading table: what was read, a bar for the share that held, and the count. */
@@ -67,7 +67,7 @@ export function home(example: Report, origin: string): string {
 ${rates()}
 <div>
 <h2 id="h-rates">How often it showed up in ${M.read} public sessions</h2>
-<p>${M.anyShown.sessions} of them (${pct(M.anyShown.percent)}) had at least one finding, and ${M.notInDiff.sessions} (${pct(M.notInDiff.percent)}) had one that no diff can show. ${M.askedFirst.no} ran with permission prompts switched off. Other people's rates will differ.</p>
+<p>${M.anyShown.sessions} of them (${pct(M.anyShown.percent)}) had at least one finding, and ${M.notInDiff.sessions} (${pct(M.notInDiff.percent)}) had one that no diff can show. ${M.askedFirst.no} had permission prompts off at some point. Other people's rates will differ.</p>
 <p><a class="more" href="/method/">How this was measured, and how to run it again</a></p>
 </div>
 </div></section>
@@ -85,7 +85,7 @@ ${rates()}
 <div id="fingerprint">${toHtml(fingerprint(example))}</div>
 <button class="btn btn-plain" id="copy-id" type="button">${toHtml(icon("copy"))}Copy the report id <span class="copy-said" role="status"></span></button>
 <p class="command">bun src/cli.ts session.jsonl</p>
-<p class="caption">The same file and rules give the same id in a terminal. Try the <a href="${sourceLink(origin, "")}">source</a> on the <a href="/example-session.jsonl">example log</a>.</p>
+<p class="caption">The same file and rules give the same id in a terminal: <a href="${sourceLink(origin, "")}">source</a>, <a href="/example-session.jsonl">example log</a>.</p>
 </div>
 </div></section>
 <script type="application/json" id="example-report">${JSON.stringify(example).replace(/</g, "\\u003c")}</script>`;
@@ -107,14 +107,14 @@ export function method(origin: string): string {
 <p class="muted" data-enter="2">Only Claude Code session logs are read for now. Other formats are refused with a message.</p>
 </div>
 <div class="wide-table" data-enter="2"><table class="rates"><caption class="visually-hidden">Findings read by hand against the log, and how many held</caption><thead><tr><th scope="col">Read by hand against the log</th><th scope="col"><span class="visually-hidden">Share as a bar</span></th><th scope="col" class="num">Held</th></tr></thead><tbody>
-${held("Checks skipped or switched off, key files opened", READ_BY_HAND.primary.held, READ_BY_HAND.primary.read, "")}
+${held("Checks skipped or switched off, settings and pipelines, key files opened",READ_BY_HAND.primary.held, READ_BY_HAND.primary.read, "")}
 ${held("Brought in, hard to undo (before three fixes)", READ_BY_HAND.other.held, READ_BY_HAND.other.read, "")}
 ${held("“Said the tests pass”, not shown in the log", READ_BY_HAND.said.heldAtMost, READ_BY_HAND.said.read, "at most; switched off")}
 </tbody></table><p class="caption">How many findings, drawn at random, were what they said. The reading was done by the builder, a language model, and not by an outside person, on the first version of the rules. The counts further down come from the current rules and were not read again. Treat it as a first check.</p></div>
 </div></section>
 
 <section class="section page" aria-labelledby="h-rules">
-<div class="split"><h2 id="h-rules">The rules</h2><p class="lead">Rules <span class="mono">${esc(RULES)}</span>. The last column is how many of ${M.read} public sessions each rule reported in, measured at commit <span class="mono">${esc(M.commit.slice(0, 7))}</span>. ${unseen} of the ${RULE_TEXT.length} rules were not seen there, so they have not been checked against real sessions. How much the rules miss was not measured.</p></div>
+<div class="split"><h2 id="h-rules">The rules</h2><p class="lead">Rules <span class="mono">${esc(RULES)}</span>. The last column is how many of ${M.read} public sessions each rule reported in, measured at commit <span class="mono">${esc(M.commit.slice(0, 7))}</span>. ${unseen} of the ${RULE_TEXT.length} rules were not seen there, so they have not been checked against real sessions. How much the rules miss was not measured. Each bar is relative to the most frequent rule, not to ${M.read}.</p></div>
 <div class="rules-wrap" data-reveal><table class="rules-table rules-full"><caption class="visually-hidden">Every rule, what the log has to show for it, and how many public sessions it reported in</caption><thead><tr><th scope="col">Kind</th><th scope="col">What the log has to show</th><th scope="col" class="num">Sessions</th></tr></thead><tbody>${ruleRows}</tbody></table></div>
 </section>
 
@@ -142,6 +142,7 @@ ${held("“Said the tests pass”, not shown in the log", READ_BY_HAND.said.held
 <h2 id="h-cannot">What it cannot see</h2>
 <ul class="plain-list">
 <li>${toHtml(icon("note"))}<span><strong>Anything outside the log.</strong> A script the agent wrote and ran can do what no rule sees. So can a sub-agent whose steps are logged elsewhere.</span></li>
+<li>${toHtml(icon("note"))}<span><strong>Whether it took effect.</strong> A finding quotes what the agent issued. If the log marks the step as ended with an error the report says so; if the log holds no result, it cannot.</span></li>
 <li>${toHtml(icon("note"))}<span><strong>Intent.</strong> You may have asked for the force push. The log does not say, so the page does not guess.</span></li>
 <li>${toHtml(icon("note"))}<span><strong>A log that was changed.</strong> The file is on the same disk as the agent, with the same rights.</span></li>
 <li>${toHtml(icon("note"))}<span><strong>Ways around the patterns.</strong> A flag passed through a variable or an alias is not matched. The rules are public, so they can be avoided on purpose.</span></li>

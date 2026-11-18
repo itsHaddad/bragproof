@@ -5,7 +5,7 @@ import { GROUPS, groupOf } from "../core/groups.ts";
 import type { Finding, Report } from "../core/types.ts";
 import { type El, h } from "./h.ts";
 import { icon, mark } from "./icons.ts";
-import { tape } from "./tape.ts";
+import { placed, tape } from "./tape.ts";
 
 const SHOWN = GROUPS.filter((g) => g.id !== "said");
 const num = (n: number): string => n.toLocaleString("en-GB");
@@ -18,7 +18,15 @@ export function startAt(report: Report): number {
   return first >= 0 ? first : report.findings.length > 0 ? 0 : -1;
 }
 
-const KIND: Record<string, string> = { s: "Command", e: "File edit", r: "File read", f: "Web request", o: "Other tool" };
+/** A finding quotes what the agent issued. When the log marks that step as ended with an error (a refusal by the
+ * person counts), the action may not have happened, and the report says so beside the finding. */
+const ERRORED = "The log marks this step as ended with an error, so it may not have taken effect.";
+const errored = (report: Report, f: Finding): boolean => {
+  const letter = report.session.track[f.step - 1] ?? "";
+  return letter !== "" && letter !== letter.toLowerCase();
+};
+
+const KIND: Record<string, string> ={ s: "Command", e: "File edit", r: "File read", f: "Web request", o: "Other tool" };
 
 /** One step of the log: the finding there if a rule matched, otherwise what the step was. */
 export function readout(report: Report, selected: number, step: number): El {
@@ -32,6 +40,7 @@ export function readout(report: Report, selected: number, step: number): El {
       h("p", { class: "readout-kind" }, mark(group.shape), group.title, h("span", { class: "readout-count num" }, `${selected + 1} of ${report.findings.length}`)),
       h("p", { class: "readout-fact" }, f.fact),
       h("pre", { class: "evidence" }, f.evidence),
+      errored(report, f) ? h("p", { class: "readout-errored" }, ERRORED) : false,
       h("p", { class: "muted readout-where num" }, `${of}. `, h("span", { class: "readout-means" }, group.means)),
     );
   }
@@ -72,19 +81,28 @@ function counts(report: Report): El {
 /** What the log records about the agent's own checks and commits, beside what it said. Exit states only: whether
  * the message is true is not judged here (a rule that tried was wrong more often than right). */
 function recorded(report: Report): El {
-  const state = (failed: boolean | null) => (failed === true ? "failed" : failed === false ? "ended normally" : "no result logged");
-  const items = report.checks.map((c) => `${c.command}: ${state(c.failed)}${c.lastLine && c.failed === false ? ` (“${c.lastLine}”)` : ""}`);
-  if (report.commits.made > 0) items.push(`${plural(report.commits.made, "commit", "commits")}, ${num(report.commits.noVerify)} with --no-verify`);
-  // On a phone only the last three lines are shown, with a count of the earlier ones, to keep the tape in view.
+  // The log holds one exit state per command line. Where the check was piped or followed by another command, that
+  // state says nothing about the check, so it is not shown as the check's.
+  const state = (c: Report["checks"][number]) => (!c.own ? "exit state not recorded (piped, or followed by || true or another command)" : c.failed === true ? "failed" : c.failed === false ? "ended normally" : "no result logged");
+  const items = report.checks.map((c) => `${c.command}: ${state(c)}${c.lastLine ? `; last output “${c.lastLine}”` : ""}`);
+  if (report.commits.made > 0) items.push(`${plural(report.commits.made, "commit command", "commit commands")}, ${num(report.commits.noVerify)} with --no-verify`);
+  // On a phone only the last three lines are shown, to keep the tape in view; the heading says which lines these are.
   const early = Math.max(0, items.length - 3);
+  const total = report.checksTotal;
+  const kept = report.checks.length;
   return h(
     "div",
     { class: "recorded" },
-    h("p", { class: "brag-label muted" }, "What the log records, in order", early > 0 ? h("span", { class: "recorded-early" }, ` (last 3 of ${items.length}; all on a wider screen)`) : false),
+    h(
+      "p",
+      { class: "brag-label muted" },
+      total > kept ? `What the log records: the last ${kept} of ${num(total)} check runs, in order` : "What the log records, in order",
+      early > 0 ? h("span", { class: "recorded-early" }, ` (last 3 of ${items.length} lines)`) : false,
+    ),
     items.length === 0
       ? h("p", { class: "recorded-list" }, "No test, lint or build command, and no commit.")
       : h("ol", { class: "recorded-list" }, ...items.map((text, i) => h("li", { class: i < early ? "is-early" : "" }, text))),
-    h("p", { class: "recorded-note muted" }, "Exit states as logged. Whether the message is true is not judged."),
+    h("p", { class: "recorded-note muted" }, "One exit state is logged per command line, and that is what is shown. Whether the message is true is not judged."),
   );
 }
 
@@ -94,6 +112,7 @@ export function panel(report: Report, label: string, selected: number, example: 
   const steps = report.session.steps;
   const step = report.findings[selected]?.step ?? 1;
   const asked = report.session.askedFirst;
+  const leftOff = placed(report).filter((p) => p === null).length;
   return h(
     "div",
     { class: "panel-body" },
@@ -120,7 +139,8 @@ export function panel(report: Report, label: string, selected: number, example: 
       h("div", { class: "kinds-narrow" }, kinds(report)),
       counts(report),
       example ? h("p", { class: "note" }, icon("note"), h("span", {}, `A made-up session, written to show the rules. It is busier than real ones: ${plural(n, "finding", "findings")} in ${plural(steps, "step", "steps")}, where most public sessions had none.`)) : false,
-      asked === false ? h("p", { class: "note" }, icon("note"), h("span", {}, "This session ran with permission prompts switched off: the agent did not ask before each step.")) : false,
+      asked === false ? h("p", { class: "note" }, icon("note"), h("span", {}, "The log records permission prompts switched off for at least part of this session.")) : false,
+      leftOff > 0 ? h("p", { class: "note" }, icon("note"), h("span", {}, `${plural(leftOff, "finding has", "findings have")} no mark on the tape for lack of room. All are in the list below.`)) : false,
       cut(report) ? h("p", { class: "note note-cut", id: "cut" }, icon("note"), h("span", {}, cut(report))) : false,
     ),
   );
@@ -131,6 +151,8 @@ export function cut(report: Report): string {
   const parts: string[] = [];
   if (report.input.stepsNotRead > 0) parts.push(`Only the first ${num(report.session.steps)} steps were read; ${plural(report.input.stepsNotRead, "later step was", "later steps were")} not.`);
   if (report.input.linesCut) parts.push(`Only the first ${num(report.input.lines)} lines were read; the rest of the log was not.`);
+  if (report.findingsNotListed > 0) parts.push(`Only the first ${num(report.findings.length)} findings are listed; ${plural(report.findingsNotListed, "more is", "more are")} not.`);
+  if (parts.length > 0 && report.input.stepsNotRead === 0 && !report.input.linesCut) return parts.join(" ");
   return parts.length > 0 ? `${parts.join(" ")} Findings in the part not read are missing from this report.` : "";
 }
 
@@ -152,12 +174,12 @@ export function ledger(report: Report, selected: number): El {
           "ol",
           { class: "rows" },
           ...rows.map(({ f, i }) =>
-            h("li", { "data-pop": "" }, h("button", { class: i === selected ? "row is-on" : "row", type: "button", "data-i": i, "aria-pressed": i === selected ? "true" : "false" }, h("span", { class: "row-step num muted" }, `Step ${num(f.step)}`), h("span", { class: "row-fact" }, f.fact), h("span", { class: "row-evidence" }, f.evidence))),
+            h("li", { "data-pop": "" }, h("button", { class: i === selected ? "row is-on" : "row", type: "button", "data-i": i, "aria-pressed": i === selected ? "true" : "false" }, h("span", { class: "row-step num muted" }, `Step ${num(f.step)}`), h("span", { class: "row-fact" }, f.fact), h("span", { class: "row-evidence" }, f.evidence), errored(report, f) ? h("span", { class: "row-errored" }, ERRORED) : false)),
           ),
         ),
       ),
     ),
-    report.hosts.length > 0 ? h("p", { class: "hosts muted" }, `Hosts named in commands: ${report.hosts.slice(0, 30).join(", ")}${report.hosts.length > 30 ? ` and ${report.hosts.length - 30} more` : ""}.`) : false,
+    report.hosts.length > 0 ? h("p", { class: "hosts muted" }, `Hosts named in commands: ${report.hosts.slice(0, 30).join(", ")}${report.hosts.length + report.hostsNotListed > 30 ? ` and ${num(report.hosts.length + report.hostsNotListed - 30)} more` : ""}.`) : false,
   );
 }
 

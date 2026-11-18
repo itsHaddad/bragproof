@@ -158,9 +158,10 @@ export function secretPath(path: string): boolean {
   return SECRET.test(path);
 }
 
-export function shellFindings(step: Step, cwd: string): { findings: Finding[]; hosts: string[]; ranTests: boolean; check: string; commits: number; noVerify: number } {
+export function shellFindings(step: Step, cwd: string): { findings: Finding[]; hosts: string[]; ranTests: boolean; check: boolean; own: boolean; commits: number; noVerify: number } {
   const list = simples(step.command);
-  let check = "";
+  let check = false;
+  let own = false;
   let commits = 0;
   let noVerify = 0;
   const findings: Finding[] = [];
@@ -176,12 +177,17 @@ export function shellFindings(step: Step, cwd: string): { findings: Finding[]; h
       seen.add(rule + fact);
       findings.push({ rule, group, step: step.n, time: step.time, fact, evidence: quote(whole || s.raw || step.command) });
     }
-    if (runsCheck(s)) check ||= quote(s.raw, 60);
+    if (runsCheck(s)) {
+      check = true;
+      // The log holds one exit state for the whole command line. It is the check's own only when the check is the
+      // last command and everything before it was joined with &&: a pipe, || or ; after it hides how it ended.
+      own = s.next === "" && list.slice(0, i).every((before) => before.next === "&&");
+    }
     if (git(s)?.sub === "commit") {
       commits++;
       if (hasFlag({ ...s, words: [s.words[0]!, ...(git(s)?.rest ?? [])] }, "--no-verify", "n")) noVerify++;
     }
   }
   if (step.sandboxOff) findings.push({ rule: "sandbox-off", group: "config", step: step.n, time: step.time, fact: "Ran this command outside the sandbox", evidence: quote(step.command) });
-  return { findings, hosts, ranTests, check, commits, noVerify };
+  return { findings, hosts, ranTests, check, own, commits, noVerify };
 }

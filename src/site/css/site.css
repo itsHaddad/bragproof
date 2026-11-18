@@ -21,6 +21,7 @@
 .where .icon { margin-top: 1px; }
 .where code { font-family: var(--font-mono); color: var(--text); overflow-wrap: anywhere; }
 .where-short { display: none; }
+caption.below { caption-side: bottom; text-align: left; padding-top: var(--s-3); }
 /* Links inside running text get a 44 px hit area without moving the line: padding out, the same margin back in. */
 main p a:not(.btn):not(.more), main li a:not(.tab) { display: inline-block; padding-block: 0.75rem; margin-block: -0.75rem; }
 .rule-n .bar { width: 4.5rem; margin: 6px 0 0 auto; height: 6px; }

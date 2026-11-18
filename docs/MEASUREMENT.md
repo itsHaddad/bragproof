@@ -41,7 +41,7 @@ The pick survives, narrowed: actions are reported, claims are not.
   15 read were the project's own tools (`tsc`, `vitest`). They are no longer reported, and the method page says so.
   A `curl` piped into `python -c` was reported as a script being run; only shells that run their input count now.
 
-## Numbers on the site (run 3)
+## First published (run 3), superseded
 
 | Kind | Sessions of 283 | Share |
 |---|---|---|
@@ -86,8 +86,6 @@ lower; that figure was not computed.
 - Precision was measured, recall was not: nobody counted what the rules missed.
 - "True" means the action happened as stated. It does not mean the action was wrong: many were plainly fine
   (a lint exception with a reason beside it, a force push to the person's own branch).
-- The version string of the rules was raised to `2026-11-18.3` in the commit after run 3; no rule changed between.
-
 ## Run it again
 
 Push a change to `scripts/measure.run`, or start the `measure` workflow by hand once it is on the default branch.

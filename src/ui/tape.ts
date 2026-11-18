@@ -26,6 +26,19 @@ export const stepAt = (fraction: number, steps: number): number => Math.min(Math
 
 export const cursorAt =(step: number, steps: number): string => `translate(${centre(columnOf(step, steps), steps)} 0)`;
 
+/** Where each finding's mark goes, or null when there is no room for it: two rows, none covering a neighbour. */
+export function placed(report: Report): ({ x: number; y: number } | null)[] {
+  const steps = report.session.steps;
+  const lastX = [-99, -99];
+  return report.findings.map((f) => {
+    const x = Math.round(Math.min(TAPE.width - 16, Math.max(0, centre(columnOf(f.step, steps), steps) - 8)) * 10) / 10;
+    const level = lastX.findIndex((taken) => x - taken >= 17);
+    if (level === -1) return null;
+    lastX[level] = x;
+    return { x, y: 26 - level * 18 };
+  });
+}
+
 export function tape(report: Report, selected: number, step: number): El {
   const { steps, track } = report.session;
   const columns = Math.min(TAPE.columns, Math.max(steps, 1));
@@ -41,19 +54,16 @@ export function tape(report: Report, selected: number, step: number): El {
   const ticks = tall.map((height, c) => h("rect", { class: failed[c] ? "tick tick-failed" : "tick", x: centre(c, steps) - 0.8, y: TAPE.base - height, width: 1.6, height: Math.max(height, 2), rx: 0.8 }));
   // Marks are full size (12 units, at least 10 px on a 390 px phone). One that would cover its neighbour goes a
   // row up; past three rows it is left off the tape and stays in the list below.
-  const lastX = [-99, -99];
+  const places = placed(report);
   const marks = report.findings.map((f, i) => {
-    const c = columnOf(f.step, steps);
-    const x = Math.round(Math.min(TAPE.width - 16, Math.max(0, centre(c, steps) - 8)) * 10) / 10;
-    const level = lastX.findIndex((taken) => x - taken >= 17);
-    if (level === -1) return false;
-    lastX[level] = x;
-    const y = 26 - level * 18;
-    return h("path", { class: i === selected ? "tape-mark is-on" : "tape-mark", "data-i": i, d: shapePath(groupOf(f.group).shape), "fill-rule": "evenodd", transform: `translate(${x} ${y}) scale(1.33)` });
+    const at = places[i];
+    if (!at) return false;
+    return h("path", { class: i === selected ? "tape-mark is-on" : "tape-mark", "data-i": i, d: shapePath(groupOf(f.group).shape), "fill-rule": "evenodd", transform: `translate(${at.x} ${at.y}) scale(1.33)` });
   });
+  const drawn = places.filter(Boolean).length;
   return h(
     "svg",
-    { class: "tape", id: "tape", viewBox: `0 0 ${TAPE.width} ${TAPE.height}`, role: "img", "aria-label": `${steps} steps in order. ${report.findings.length} marked. Press anywhere on it to read that step, or use the slider below.` },
+    { class: "tape", id: "tape", viewBox: `0 0 ${TAPE.width} ${TAPE.height}`, role: "img", "aria-label": `${steps} steps in order. ${drawn} of ${report.findings.length} findings marked. Press anywhere on it to read that step, or use the slider below.` },
     h("rect", { class: "tape-base", x: 0, y: TAPE.base + 2, width: TAPE.width, height: 1 }),
     h("g", { class: "tape-ticks wipe" }, ...ticks),
     h("rect", { class: "tape-cursor", x: -0.5, y: 2, width: 1, height: TAPE.base, transform: cursorAt(step, steps) }),

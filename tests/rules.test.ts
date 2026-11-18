@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { analyze, findingsOf, SWITCHED_OFF } from "../src/core/analyze.ts";
+import { analyze, findingsOf, LISTED, SWITCHED_OFF } from "../src/core/analyze.ts";
 import { passClaims } from "../src/core/claims.ts";
 import { LIMITS, parseSession } from "../src/core/parse.ts";
 import { toHtml } from "../src/ui/h.ts";
-import { cut, fingerprint, panel } from "../src/ui/view.ts";
+import { cut, fingerprint, ledger, panel } from "../src/ui/view.ts";
 import { bash, edit, log, read, say, tool, user, write } from "./helpers.ts";
 
 const rules = async (...parts: Parameters<typeof log>) => (await analyze(log(user("do it"), ...parts))).findings.map((f) => f.rule);
@@ -137,9 +137,75 @@ test("edits to pipelines and settings are a neutral kind of their own, not a che
 
 test("what the log records about checks and commits is kept as exit states, with no judgement", async () => {
   const report = await analyze(log(user("go"), bash("bun test", { failed: true, output: "1 fail" }), bash("bun test", { output: "13 pass\n1 skip" }), bash("bun run lint", { failed: true }), bash("git commit --no-verify -m x"), say("All tests pass.")));
-  expect(report.checks.map((c) => [c.command, c.failed, c.lastLine])).toEqual([["bun test", true, "1 fail"], ["bun test", false, "13 pass, 1 skip"], ["bun run lint", true, ""]]);
+  expect(report.checks.map((c) => [c.command, c.failed, c.own, c.lastLine])).toEqual([["bun test", true, true, "1 fail"], ["bun test", false, true, "13 pass, 1 skip"], ["bun run lint", true, true, ""]]);
   expect(report.commits).toEqual({ made: 1, noVerify: 1 });
   expect(report.findings.map((f) => f.rule)).toEqual(["commit-no-verify"]);
+});
+
+test("an exit state is never pinned on a check that was piped or followed by another command", async () => {
+  const report = await analyze(
+    log(
+      user("go"),
+      bash('pytest -k "not slow" || true', { output: "3 failed, 10 passed" }),
+      bash("cd app && npm test 2>&1 | tail -5", { output: "Tests: 2 failed, 40 passed" }),
+      bash("bun test; echo done", { output: "1 fail\ndone" }),
+      bash("cd app && bun test", { failed: true, output: "1 fail" }),
+      bash("bun run lint && bun test", { output: "12 pass" }),
+    ),
+  );
+  expect(report.checks.map((c) => [c.command, c.own, c.failed])).toEqual([
+    ['pytest -k "not slow" || true', false, false],
+    ["cd app && npm test 2>&1 | tail -5", false, false],
+    ["bun test; echo done", false, false],
+    ["cd app && bun test", true, true],
+    ["bun run lint && bun test", true, false],
+  ]);
+  const html = toHtml(panel(report, "x", -1, false));
+  expect(html).toContain("pytest -k &#34;not slow&#34; || true: exit state not recorded (piped, or followed by || true or another command); last output “3 failed, 10 passed”");
+  expect(html).toContain("cd app &#38;&#38; npm test 2&#62;&#38;1 | tail -5: exit state not recorded");
+  expect(html).toContain("cd app &#38;&#38; bun test: failed; last output “1 fail”");
+  expect(/not slow[^<]*ended normally|tail -5[^<]*ended normally|echo done[^<]*ended normally/.test(html)).toBe(false);
+  expect(html).toContain("One exit state is logged per command line");
+});
+
+test("more check runs than the report keeps: the heading says which and the total is in the report", async () => {
+  const runs: Parameters<typeof log> = [user("go")];
+  for (let i = 0; i < 11; i++) runs.push(bash(`bun test src/part-${i}`, { failed: i < 9, output: `${i} fail` }));
+  const report = await analyze(log(...runs));
+  expect(report.checksTotal).toBe(11);
+  expect(report.checks.map((c) => c.command)).toEqual([3, 4, 5, 6, 7, 8, 9, 10].map((i) => `bun test src/part-${i}`));
+  const html = toHtml(panel(report, "x", -1, false));
+  expect(html).toContain("What the log records: the last 8 of 11 check runs, in order");
+  const few = toHtml(panel(await analyze(log(user("go"), bash("bun test"))), "x", -1, false));
+  expect(few).toContain("What the log records, in order");
+  expect(few.includes("last 8 of")).toBe(false);
+});
+
+test("a log longer than the line limit says so", async () => {
+  const filler = `${JSON.stringify({ type: "summary", note: "x" })}\n`.repeat(LIMITS.lines);
+  const text = `${log(user("go"), bash("ls"))}\n${filler}${log(bash("git commit --no-verify -m late"))}`;
+  const report = await analyze(text);
+  expect(report.input.linesCut).toBe(true);
+  expect(report.input.lines).toBe(LIMITS.lines);
+  expect(report.findings).toEqual([]);
+  expect(cut(report)).toBe("Only the first 400,000 lines were read; the rest of the log was not. Findings in the part not read are missing from this report.");
+  expect(toHtml(fingerprint(report))).toContain("Only the first 400,000 lines were read");
+  const exact = await analyze(`${log(user("go"), bash("ls"))}\n${filler.repeat(1).slice(0, -1)}`.split("\n").slice(0, LIMITS.lines).join("\n"));
+  expect(exact.input.linesCut).toBe(false);
+});
+
+test("a finding on a step the log marks as failed says it may not have taken effect; lists that are cut say so", async () => {
+  const refused = await analyze(log(user("go"), bash("git commit --no-verify -m x", { failed: true, output: "The user doesn't want to proceed with this tool use." }), bash("git push --force")));
+  const html = toHtml(ledger(refused, 0));
+  expect(html.split("may not have taken effect").length - 1).toBe(1);
+  expect(toHtml(panel(refused, "x", 0, false))).toContain("The log marks this step as ended with an error");
+  const many: Parameters<typeof log> = [user("go")];
+  for (let i = 0; i < LISTED.findings + 5; i++) many.push(bash("git push --force"));
+  const capped = await analyze(log(...many));
+  expect(capped.findings.length).toBe(LISTED.findings);
+  expect(capped.findingsNotListed).toBe(5);
+  expect(cut(capped)).toBe("Only the first 2,000 findings are listed; 5 more are not.");
+  expect(toHtml(panel(capped, "x", 0, false))).toContain("no mark on the tape for lack of room");
 });
 
 test("a sandbox switched off for one command is found", async () => {

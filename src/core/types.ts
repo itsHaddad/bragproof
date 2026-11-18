@@ -52,8 +52,12 @@ export type GroupId = "skipped" | "off" | "config" | "secrets" | "outside" | "un
 /** One check the agent ran (tests, lint, types, build) and how the log says it ended. No judgement. */
 export interface CheckRun {
   step: number;
+  /** The whole command line, shortened. */
   command: string;
+  /** How the whole command line ended; null when the log holds no result for it. */
   failed: boolean | null;
+  /** False when the check was piped or followed by another command, so the line's exit state is not the check's. */
+  own: boolean;
   /** The last line the command printed, shortened. */
   lastLine: string;
 }
@@ -76,8 +80,13 @@ export interface Report {
   labels: string[];
   /** The last checks the agent ran and how each ended, as the log records it. */
   checks: CheckRun[];
-  /** Whether the last commit in the log was made with its checks off. */
+  /** How many check runs the log holds in all; `checks` keeps the last eight. */
+  checksTotal: number;
+  /** Commit commands in the log, and how many carried --no-verify. Whether each commit went through is not known. */
   commits: { made: number; noVerify: number };
+  /** Findings and hosts beyond what the report lists. */
+  findingsNotListed: number;
+  hostsNotListed: number;
   session: {
     steps: number;
     turns: number;
