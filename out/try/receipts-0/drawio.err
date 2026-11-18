@@ -1,0 +1,35 @@
+Unable to find image 'ghcr.io/itshaddad/bragproof-runner@sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5' locally
+ghcr.io/itshaddad/bragproof-runner@sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5: Pulling from itshaddad/bragproof-runner
+abe1fea37542: Pulling fs layer
+f6ce3834b706: Pulling fs layer
+566ac9157981: Pulling fs layer
+5e98ba22ffba: Pulling fs layer
+bec5e88d74da: Pulling fs layer
+0d4168ab2bca: Pulling fs layer
+b3c7d2b49e1a: Pulling fs layer
+4f4fb700ef54: Pulling fs layer
+f42e85ddc713: Pulling fs layer
+6ab3b7720efd: Pulling fs layer
+4f4fb700ef54: Already exists
+b3c7d2b49e1a: Download complete
+f42e85ddc713: Download complete
+6ab3b7720efd: Download complete
+566ac9157981: Download complete
+5e98ba22ffba: Download complete
+0d4168ab2bca: Download complete
+abe1fea37542: Download complete
+bec5e88d74da: Download complete
+f6ce3834b706: Download complete
+5e98ba22ffba: Pull complete
+abe1fea37542: Pull complete
+f42e85ddc713: Pull complete
+0d4168ab2bca: Pull complete
+f6ce3834b706: Pull complete
+4f4fb700ef54: Pull complete
+b3c7d2b49e1a: Pull complete
+6ab3b7720efd: Pull complete
+566ac9157981: Pull complete
+bec5e88d74da: Pull complete
+Digest: sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5
+Status: Downloaded newer image for ghcr.io/itshaddad/bragproof-runner@sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5
+check passed; evidence: none
