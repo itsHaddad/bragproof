@@ -15,7 +15,8 @@ const DATASET = "cfahlgren1/SWE-chat";
 const SIZE = Number(process.argv[2] ?? 300);
 const SEED = process.argv[3] ?? "bragproof-2026-11-18";
 const OUT = process.argv[4] ?? "measurement";
-const PRIMARY: GroupId[] = ["skipped", "off", "secrets"];
+// The same rules the kill test counted, now in four groups: the neutral "settings and pipelines" rules were split out.
+const PRIMARY: GroupId[] = ["skipped", "off", "secrets", "config"];
 
 async function listTraces(): Promise<string[]> {
   const names: string[] = [];
@@ -91,7 +92,7 @@ for (const r of rows) {
     rules.set(f.rule, row);
   }
 }
-const groups: GroupId[] = ["skipped", "off", "secrets", "outside", "undo", "hidden", "said"];
+const groups: GroupId[] = ["skipped", "off", "config", "secrets", "outside", "undo", "hidden", "said"];
 const summary = {
   dataset: DATASET,
   seed: SEED,

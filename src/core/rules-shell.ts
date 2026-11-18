@@ -102,8 +102,11 @@ const outside = (target: string, cwd: string): boolean => {
   return t.startsWith("/") && !(cwd && (t === cwd || t.startsWith(`${cwd}/`)));
 };
 
-function one(s: Simple, cwd: string, piped: Simple | undefined, before: Simple | undefined): [string, GroupId, string][] {
-  const out: [string, GroupId, string][] = [];
+/** Rule, group, fact, and the text to quote when it is more than this one command (a whole pipeline). */
+type Hit = [string, GroupId, string, string?];
+
+function one(s: Simple, cwd: string, piped: Simple | undefined, before: Simple | undefined): Hit[] {
+  const out: Hit[] = [];
   const cmd = name(s);
   const g = git(s);
   if (g) {
@@ -123,7 +126,7 @@ function one(s: Simple, cwd: string, piped: Simple | undefined, before: Simple |
       if ((key === "HUSKY" && value === "0") || key === "HUSKY_SKIP_HOOKS" || (key === "LEFTHOOK" && value === "0") || (key === "SKIP" && value !== "") || key === "PRE_COMMIT_ALLOW_NO_CONFIG") out.push(["hooks-env", "skipped", `Switched the commit hooks off for this command (${key}=${quote(value, 40)})`]);
     }
   }
-  if (before && before.next === "||" && (cmd === "true" || cmd === ":") && runsCheck(before)) out.push(["failure-masked", "skipped", "Ran a check so that it cannot fail (|| true)"]);
+  if (before && before.next === "||" && (cmd === "true" || cmd === ":") && runsCheck(before)) out.push(["failure-masked", "skipped", "Ran a check so that it cannot fail (|| true)", `${before.raw} || ${s.raw}`]);
   if (cmd === "rm" && args(s).some((w) => /^-[A-Za-z]*r/i.test(w) || w === "--recursive")) {
     const far = args(s).filter((w) => !w.startsWith("-") && outside(w, cwd));
     if (far.length > 0) out.push(["rm-outside", "undo", `Deleted a folder outside the project (${quote(far[0] ?? "", 80)})`]);
@@ -132,7 +135,7 @@ function one(s: Simple, cwd: string, piped: Simple | undefined, before: Simple |
     const tests = (g ? g.rest.map((w) => w.text) : args(s)).filter((w) => !w.startsWith("-") && /(^|\/)(tests?|__tests__|spec)\/|[._-](test|spec)\.[a-z]+$|(^|\/)test_[^/]+\.py$|_test\.(go|py|rb)$/i.test(w));
     if (tests.length > 0) out.push(["tests-deleted", "off", `Deleted test files (${quote(tests.slice(0, 3).join(", "), 120)})`]);
   }
-  if (FETCHERS.has(cmd) && piped && runsItsInput(piped)) out.push(["pipe-to-shell", "outside", "Downloaded a script and ran it in one step"]);
+  if (FETCHERS.has(cmd) && piped && runsItsInput(piped)) out.push(["pipe-to-shell", "outside", "Downloaded a script and ran it in one step", `${s.raw} | ${piped.raw}`]);
   const pkgs = packagesNamed(s);
   if (pkgs) out.push([pkgs.ran ? "ran-package" : "installed-package", "outside", `${pkgs.ran ? "Ran" : "Installed"} from ${pkgs.from} by name: ${quote(pkgs.names.join(", "), 160)}`]);
   if (/^sudo\s/.test(s.raw)) out.push(["sudo", "outside", "Ran a command as administrator (sudo)"]);
@@ -155,8 +158,11 @@ export function secretPath(path: string): boolean {
   return SECRET.test(path);
 }
 
-export function shellFindings(step: Step, cwd: string): { findings: Finding[]; hosts: string[]; ranTests: boolean } {
+export function shellFindings(step: Step, cwd: string): { findings: Finding[]; hosts: string[]; ranTests: boolean; check: string; commits: number; noVerify: number } {
   const list = simples(step.command);
+  let check = "";
+  let commits = 0;
+  let noVerify = 0;
   const findings: Finding[] = [];
   const hosts: string[] = [];
   let ranTests = false;
@@ -165,12 +171,17 @@ export function shellFindings(step: Step, cwd: string): { findings: Finding[]; h
     ranTests ||= runsTests(s);
     hosts.push(...hostsIn(s));
     const piped = s.next === "|" || s.next === "|&" ? list[i + 1] : undefined;
-    for (const [rule, group, fact] of one(s, cwd, piped, list[i - 1])) {
+    for (const [rule, group, fact, whole] of one(s, cwd, piped, list[i - 1])) {
       if (seen.has(rule + fact)) continue;
       seen.add(rule + fact);
-      findings.push({ rule, group, step: step.n, time: step.time, fact, evidence: quote(s.raw || step.command) });
+      findings.push({ rule, group, step: step.n, time: step.time, fact, evidence: quote(whole || s.raw || step.command) });
+    }
+    if (runsCheck(s)) check ||= quote(s.raw, 60);
+    if (git(s)?.sub === "commit") {
+      commits++;
+      if (hasFlag({ ...s, words: [s.words[0]!, ...(git(s)?.rest ?? [])] }, "--no-verify", "n")) noVerify++;
     }
   }
-  if (step.sandboxOff) findings.push({ rule: "sandbox-off", group: "skipped", step: step.n, time: step.time, fact: "Ran this command outside the sandbox", evidence: quote(step.command) });
-  return { findings, hosts, ranTests };
+  if (step.sandboxOff) findings.push({ rule: "sandbox-off", group: "config", step: step.n, time: step.time, fact: "Ran this command outside the sandbox", evidence: quote(step.command) });
+  return { findings, hosts, ranTests, check, commits, noVerify };
 }

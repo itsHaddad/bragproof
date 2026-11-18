@@ -35,6 +35,10 @@ export interface Session {
   says: Say[];
   lines: number;
   skippedLines: number;
+  /** Steps the log holds beyond the limit: they were counted, not read. */
+  stepsNotRead: number;
+  /** True when the line limit stopped the read before the end of the log. */
+  linesCut: boolean;
   turns: number;
   models: string[];
   cwd: string;
@@ -43,7 +47,16 @@ export interface Session {
   end: string;
 }
 
-export type GroupId = "skipped" | "off" | "secrets" | "outside" | "undo" | "hidden" | "said";
+export type GroupId = "skipped" | "off" | "config" | "secrets" | "outside" | "undo" | "hidden" | "said";
+
+/** One check the agent ran (tests, lint, types, build) and how the log says it ended. No judgement. */
+export interface CheckRun {
+  step: number;
+  command: string;
+  failed: boolean | null;
+  /** The last line the command printed, shortened. */
+  lastLine: string;
+}
 
 export interface Finding {
   rule: string;
@@ -58,7 +71,13 @@ export interface Finding {
 
 export interface Report {
   rules: string;
-  input: { sha256: string; bytes: number; lines: number; skippedLines: number };
+  input: { sha256: string; bytes: number; lines: number; skippedLines: number; stepsNotRead: number; linesCut: boolean };
+  /** What each step was, one short line per step, for reading any tick on the tape. */
+  labels: string[];
+  /** The last checks the agent ran and how each ended, as the log records it. */
+  checks: CheckRun[];
+  /** Whether the last commit in the log was made with its checks off. */
+  commits: { made: number; noVerify: number };
   session: {
     steps: number;
     turns: number;

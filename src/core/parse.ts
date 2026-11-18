@@ -68,6 +68,7 @@ export function parseSession(text: string): Session {
   let cwd = "";
   let start = "";
   let end = "";
+  let stepsNotRead = 0;
   let pending: Say | null = null;
   const closeTurn = () => {
     if (pending?.text.trim()) says.push(pending);
@@ -110,7 +111,9 @@ export function parseSession(text: string): Session {
         if (!isObject(block)) continue;
         if (block.type === "text" && typeof block.text === "string" && block.text.trim()) {
           pending = { turn, afterStep: steps.length, time, text: block.text.slice(0, 20_000) };
-        } else if (block.type === "tool_use" && steps.length < LIMITS.steps) {
+        } else if (block.type === "tool_use" && steps.length >= LIMITS.steps) {
+          stepsNotRead++;
+        } else if (block.type === "tool_use") {
           const step = stepFrom(block, steps.length + 1, turn, time);
           steps.push(step);
           if (typeof block.id === "string") byId.set(block.id, step);
@@ -136,5 +139,7 @@ export function parseSession(text: string): Session {
   closeTurn();
   if (recognised === 0) throw new NotALog("No agent messages found. A Claude Code session log has one JSON object per line.");
   const askedFirst = modes.size === 0 ? null : !modes.has("bypassPermissions");
-  return { steps, says, lines, skippedLines: skipped, turns: Math.max(turn, 1), models: [...models].sort(), cwd, askedFirst, start, end };
+  // Anything but blank space left after the line limit means the read stopped early.
+  const linesCut = lines >= LIMITS.lines && text.slice(from).trim() !== "";
+  return { steps, says, lines, skippedLines: skipped, stepsNotRead, linesCut, turns: Math.max(turn, 1), models: [...models].sort(), cwd, askedFirst, start, end };
 }

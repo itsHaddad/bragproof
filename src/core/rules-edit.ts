@@ -33,8 +33,9 @@ export function editFindings(step: Step): Finding[] {
         if (count(step.added, re) > count(step.removed, re)) add(rule, "off", fact, `${step.path}: ${firstLineWith(step.added, re).trim()}`);
       }
     }
-    if (CHECK_CONFIG.test(step.path)) add("check-config", "off", "Edited a CI workflow or commit-hook file", step.path);
-    if (OWN_SETTINGS.test(step.path)) add("own-settings", "skipped", "Edited the agent's own settings file", step.path);
+    // Neutral facts in a group of their own: an edit here is often just the task, not a check being silenced.
+    if (CHECK_CONFIG.test(step.path)) add("check-config", "config", "Edited a CI workflow or commit-hook file", step.path);
+    if (OWN_SETTINGS.test(step.path)) add("own-settings", "config", "Edited the agent's own settings file", step.path);
   }
   if (step.kind === "read" && secretPath(step.path)) add("secret-read", "secrets", `Opened a file that usually holds keys (${quote(step.path, 100)})`, step.path);
   if (step.output) {
