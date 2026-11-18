@@ -1,0 +1,54 @@
+VM claimcheck-mwcrpt4q (c3-standard-4, Intel TDX) is starting in europe-west4-a
+the workload ended without a receipt; last log lines:
+time=2026-11-11T23:47:31.582Z level=INFO msg="MemoryMonitoring is disabled by the VM operator"
+time=2026-11-11T23:47:31.681Z level=INFO msg="Container stdout/stderr will be redirected to serial logging. This may result in performance issues due to slow serial console writes."
+time=2026-11-11T23:47:31.849Z level=INFO msg="Workload setup completed" setup_sec=2.588228619
+time=2026-11-11T23:47:31.965Z level=INFO msg="workload task started"
+15 | /** Makes the attestation socket usable by root only, and confirms it. Called before any subject code runs, so
+16 |  * the package under test, which runs as an unprivileged user, cannot ask for a token of its own. Throws when
+17 |  * the socket cannot be locked: then no attested receipt may be made. */
+18 | export function lockSocket(path = SOCKET): void {
+19 |   if (process.getuid?.() !== 0) throw new Error("the runner must be root so the subject can run as a lesser user");
+20 |   chownSync(path, 0, 0);
+       ^
+EROFS: read-only file system, chown '/run/container_launcher/teeserver.sock'
+    path: "/run/container_launcher/teeserver.sock",
+ syscall: "chown",
+   errno: -30,
+    code: "EROFS"
+
+      at lockSocket (/runner/src/attest/confidential-space.ts:20:3)
+      at main (/runner/src/cli/main.ts:68:36)
+      at main (/runner/src/cli/main.ts:61:20)
+      at /runner/src/cli/main.ts:136:20
+
+Bun v1.2.21 (Linux x64 baseline)
+time=2026-11-11T23:47:32.101Z level=ERROR msg="workload task ended and returned non-zero" workload_execution_sec=0.159037862
+
+no receipt; last log lines:
+time=2026-11-11T23:47:31.582Z level=INFO msg="MemoryMonitoring is disabled by the VM operator"
+time=2026-11-11T23:47:31.681Z level=INFO msg="Container stdout/stderr will be redirected to serial logging. This may result in performance issues due to slow serial console writes."
+time=2026-11-11T23:47:31.849Z level=INFO msg="Workload setup completed" setup_sec=2.588228619
+time=2026-11-11T23:47:31.965Z level=INFO msg="workload task started"
+15 | /** Makes the attestation socket usable by root only, and confirms it. Called before any subject code runs, so
+16 |  * the package under test, which runs as an unprivileged user, cannot ask for a token of its own. Throws when
+17 |  * the socket cannot be locked: then no attested receipt may be made. */
+18 | export function lockSocket(path = SOCKET): void {
+19 |   if (process.getuid?.() !== 0) throw new Error("the runner must be root so the subject can run as a lesser user");
+20 |   chownSync(path, 0, 0);
+       ^
+EROFS: read-only file system, chown '/run/container_launcher/teeserver.sock'
+    path: "/run/container_launcher/teeserver.sock",
+ syscall: "chown",
+   errno: -30,
+    code: "EROFS"
+
+      at lockSocket (/runner/src/attest/confidential-space.ts:20:3)
+      at main (/runner/src/cli/main.ts:68:36)
+      at main (/runner/src/cli/main.ts:61:20)
+      at /runner/src/cli/main.ts:136:20
+
+Bun v1.2.21 (Linux x64 baseline)
+time=2026-11-11T23:47:32.101Z level=ERROR msg="workload task ended and returned non-zero" workload_execution_sec=0.159037862
+
+VM claimcheck-mwcrpt4q delete requested: 200

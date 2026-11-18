@@ -1,0 +1,59 @@
+name: report
+# Makes run reports: installs each package in the runner's jail on a throwaway GitHub machine, starts it with
+# no configuration, and records what happened. Name lookups and connections are recorded outside the
+# container, where the package cannot hide them. Each report is sent to the feed with a token from GitHub
+# that names this workflow, this commit and the report's hash, so the feed (and anyone else) can tell the
+# report came from this code and was not edited afterwards.
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "'queue' (what people asked the feed for), or a file under tools/ holding a JSON array of package names"
+        default: queue
+      shards:
+        description: how many machines to spread a file over
+        default: "1"
+  schedule:
+    - cron: "*/15 * * * *"
+permissions:
+  contents: read
+concurrency:
+  group: report-${{ github.event_name }}-${{ inputs.source || 'queue' }}
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      todo: ${{ steps.plan.outputs.todo }}
+    steps:
+      - id: plan
+        env:
+          SOURCE: ${{ inputs.source || 'queue' }}
+          SHARDS: ${{ inputs.shards || '1' }}
+        run: |
+          case "$SHARDS" in ''|*[!0-9]*) SHARDS=1;; esac
+          [ "$SHARDS" -ge 1 ] && [ "$SHARDS" -le 40 ] || SHARDS=1
+          todo=yes
+          if [ "$SOURCE" = queue ]; then
+            SHARDS=1
+            n=$(curl -fsS --max-time 20 "https://bragproof.smaverk.com/v1/queue?limit=1" | jq '.packages | length' || echo 0)
+            [ "$n" -gt 0 ] || todo=no
+          fi
+          echo "shards=$(jq -nc --argjson n "$SHARDS" '[range(0; $n)]')" >> "$GITHUB_OUTPUT"
+          echo "todo=$todo" >> "$GITHUB_OUTPUT"
+  run:
+    needs: plan
+    if: needs.plan.outputs.todo == 'yes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Report on each package

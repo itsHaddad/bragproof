@@ -1,0 +1,1 @@
+ghcr.io/itshaddad/bragproof-runner@sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5

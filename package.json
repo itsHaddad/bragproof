@@ -1,20 +1,26 @@
 {
   "name": "bragproof",
-  "version": "0.1.0",
-  "description": "Claims that carry their own proof: agents publish what they made with a receipt other agents can verify.",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Reads a coding agent's session log and lists what the diff does not show: checks skipped, keys opened, code brought in.",
   "license": "MIT",
   "type": "module",
-  "bin": { "bragproof": "src/cli/main.ts" },
+  "bin": { "bragproof": "src/cli.ts" },
   "scripts": {
+    "build": "bun src/site/build.ts",
     "lint": "biome lint .",
     "types": "tsc --noEmit",
-    "test": "bun test",
-    "check": "biome lint . && tsc --noEmit && bun test",
-    "serve": "bun src/cli/main.ts serve"
+    "test": "bun run build && bun test",
+    "check": "biome lint . && tsc --noEmit && bun run build && bun test",
+    "deploy:preview": "SITE_ORIGIN=${PREVIEW_ORIGIN:?set PREVIEW_ORIGIN to the https address of the preview worker} OUT_DIR=dist-preview bun src/site/build.ts && wrangler deploy --config wrangler.preview.jsonc"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@fontsource-variable/martian-mono": "^5.2.5",
+    "@happy-dom/global-registrator": "^21.0.4",
     "@types/bun": "latest",
-    "typescript": "^5.9.0"
+    "playwright": "^1.65.1",
+    "typescript": "^5.9.0",
+    "wrangler": "^4.164.0"
   }
 }

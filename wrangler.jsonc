@@ -1,12 +1,10 @@
 {
-  // The public Bragproof feed. Deploy: bunx wrangler deploy
+  // The public site. Static files only: no server code, no database, no bindings.
+  // Deploying this replaces what bragproof.smaverk.com serves. Deploy: bun run build && bunx wrangler deploy
   "name": "bragproof-feed",
-  "main": "worker/index.ts",
   "compatibility_date": "2026-09-01",
-  "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "routes": [{ "pattern": "bragproof.smaverk.com", "custom_domain": true }],
-  "vars": { "PUBLIC_ORIGIN": "https://bragproof.smaverk.com" },
-  "d1_databases": [{ "binding": "DB", "database_name": "bragproof-feed", "database_id": "cc990700-8f74-4f38-9a33-a722bce72e6c" }],
-  "observability": { "enabled": true }
+  "assets": { "directory": "dist", "html_handling": "auto-trailing-slash", "not_found_handling": "404-page" },
+  "observability": { "enabled": false }
 }

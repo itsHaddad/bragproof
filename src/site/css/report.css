@@ -1,0 +1,104 @@
+/* The working panel (tape, one finding at a time) and the ledger of every finding. */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-5); transition: background-color var(--t-quick) ease, border-color var(--t-quick) ease; }
+.panel:focus-visible { outline-offset: 4px; }
+.panel-body, .panel-main, .panel-extra { display: grid; gap: var(--s-3); }
+.panel-body p { margin: 0; }
+/* On a phone the working part (tape, one finding, the stepper) is the panel; the counts sit under it, so the part
+   a person uses is inside the first screen. */
+@media (max-width: 59.99rem) {
+  .panel { background: none; border: 0; padding: 0; }
+  .panel-main { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); }
+  .brag-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .recorded-note, .recorded-list .is-early, .kinds-wide, .has-early .recorded-wide { display: none; }
+  .evidence { padding: var(--s-2); }
+  .readout { padding-top: var(--s-2); gap: var(--s-1); }
+  .panel-main { gap: var(--s-2); }
+  .readout { min-height: 0; }
+  .readout { min-height: 9.5rem; }
+  .readout-means { display: none; }
+  .evidence { max-height: 4.6em; }
+}
+.source { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.chip { display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--s-3); border-radius: var(--r-full); background: var(--surface-2); font-weight: 600; font-size: var(--step--1); overflow-wrap: anywhere; }
+.chip-example { background: var(--accent-soft); }
+.brag { border-left: 3px solid var(--line); padding-left: var(--s-3); }
+.brag-label { font-size: var(--step--1); }
+.recorded { border-left: 3px solid var(--text); padding-left: var(--s-3); }
+.recorded-list { list-style: none; margin: 0; padding: 0; font: var(--step--1) / 1.5 var(--font-mono); overflow-wrap: anywhere; }
+.recorded-note { font-size: var(--step--1); }
+@media (min-width: 60rem) { .recorded-early, .kinds-narrow { display: none; } }
+.tape { cursor: pointer; }
+.readout-kind.readout-plain { color: var(--muted); }
+.readout-where { max-width: var(--measure); }
+.note-cut { color: var(--text); font-weight: 600; }
+.cut-line { display: block; font-family: var(--font-text); font-weight: 600; }
+.brag-text { font-size: var(--step-0); overflow-wrap: anywhere; }
+
+.tape { width: 100%; height: auto; max-width: 36rem; }
+.tick { fill: var(--muted); }
+.tick-failed { fill: var(--text); }
+.tape-base { fill: var(--line); }
+.tape-mark { fill: var(--mark); transform-box: fill-box; transform-origin: center; animation: pop var(--t-medium) var(--ease-bounce) backwards; animation-delay: calc(var(--t-hero) * 0.6); transition: fill var(--t-quick) ease; }
+.tape-mark.is-on { fill: var(--accent); }
+.tape-cursor { fill: var(--accent); opacity: 0.55; }
+.tape-cursor.is-off { opacity: 0; }
+
+.kinds { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); list-style: none; margin: 0; padding: 0; color: var(--muted); font-size: var(--step--1); }
+.kinds li { display: inline-flex; align-items: flex-end; gap: var(--s-2); }
+.kind-tick { display: inline-block; width: 3px; border-radius: var(--r-full); background: var(--muted); margin-bottom: 4px; }
+.kind-tall { height: 16px; } .kind-mid { height: 11px; } .kind-low { height: 6px; }
+
+.readout { border-top: 1px solid var(--line); padding-top: var(--s-3); display: grid; gap: var(--s-2); min-height: 12.5rem; align-content: start; }
+.readout-kind { display: flex; align-items: center; gap: var(--s-2); font-weight: 600; color: var(--mark); }
+.readout-count { margin-left: auto; color: var(--muted); font-weight: 500; }
+.readout-fact { font: 600 var(--step-1) / 1.3 var(--font-display); font-stretch: 75%; letter-spacing: var(--track-heading); overflow-wrap: anywhere; }
+.readout-where { font-size: var(--step--1); }
+.readout-in { animation: readout-in var(--t-quick) ease both; }
+@keyframes readout-in { from { opacity: 0.35; } }
+.evidence { margin: 0; padding: var(--s-3); background: var(--surface-2); border-radius: var(--r-1); font: var(--step--1) / 1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 7.5em; overflow: auto; }
+.mark { flex: none; fill: currentColor; }
+
+.stepper { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s-3); align-items: center; }
+.stepper.is-off { display: none; }
+.stepper .btn { padding: 0 var(--s-3); }
+.scrub { width: 100%; min-height: var(--control); margin: 0; accent-color: var(--accent); cursor: pointer; }
+
+.counts { display: flex; flex-wrap: wrap; gap: var(--s-2); list-style: none; margin: 0; padding: 0; }
+.counts li { max-width: none; display: flex; align-items: center; }
+/* A kind with findings is a button (bordered, full height). A kind with none is plain text, so it does not look pressable. */
+.count { display: inline-flex; align-items: center; gap: var(--s-2); min-height: var(--control); padding: 0 var(--s-3); font: 600 var(--step--1) / 1 var(--font-text); color: var(--text); }
+button.count { border: 1px solid var(--field-line); border-radius: var(--r-1); background: var(--surface); cursor: pointer; transition: background-color var(--t-quick) ease, transform var(--t-quick) var(--ease-out); }
+button.count:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) { button.count:hover { background: var(--surface-2); } }
+.count .mark { color: var(--mark); }
+.count.zero { color: var(--muted); font-weight: 500; padding-inline: var(--s-2); }
+.count.zero .mark { color: var(--muted); }
+.note { display: flex; gap: var(--s-2); align-items: flex-start; color: var(--muted); font-size: var(--step--1); border-top: 1px solid var(--line); padding-top: var(--s-3); }
+.note .icon { margin-top: 1px; }
+.fresh { animation: screen-in var(--t-fast) var(--ease-out) both; }
+
+.ledger { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: 0 var(--s-5); }
+.ledger-group { padding-block: var(--s-5); display: grid; gap: var(--s-3); }
+.ledger-group + .ledger-group { border-top: 1px solid var(--line); }
+@media (min-width: 60rem) { .ledger-group { grid-template-columns: 5fr 7fr; gap: var(--s-8); } }
+.ledger-head h3 { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-2); }
+.ledger-head h3 .mark { color: var(--mark); }
+.ledger-n { margin-left: auto; color: var(--muted); font: 500 var(--step-0) / 1 var(--font-text); }
+.ledger-head p { margin: 0; }
+.rows { list-style: none; margin: 0; padding: 0; }
+.rows li { max-width: none; }
+.rows li + li { border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 5.5rem 1fr; gap: var(--s-1) var(--s-3); width: 100%; min-height: var(--control); padding: var(--s-3) var(--s-2); margin: 0; background: none; border: 0; border-radius: var(--r-1); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color var(--t-quick) ease, transform var(--t-quick) var(--ease-out); }
+.row:active { transform: scale(0.99); }
+.row.is-on { background: var(--accent-soft); }
+@media (hover: hover) and (pointer: fine) { .row:hover { background: var(--surface-2); } .row.is-on:hover { background: var(--accent-soft); } }
+.row-step { font-size: var(--step--1); padding-top: 2px; }
+.row-fact { font-weight: 600; overflow-wrap: anywhere; }
+/* The quoted line is shown whole (it is already cut to 240 characters with a visible mark): the matched text may be at its end. */
+.row-evidence { grid-column: 2; font: var(--step--1) / 1.5 var(--font-mono); color: var(--muted); overflow-wrap: anywhere; }
+.row-errored { grid-column: 2; font-size: var(--step--1); font-weight: 600; }
+.readout-errored { font-size: var(--step--1); font-weight: 600; }
+.hosts { padding-block: var(--s-4); border-top: 1px solid var(--line); margin: 0; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .tape-mark, .readout-in, .fresh { animation: none; } .row:active, button.count:active { transform: none; } }
+@media print { [data-reveal].wait, [data-reveal].wait [data-pop] { opacity: 1 !important; transform: none !important; scale: 1 !important; } }
+.ledger-empty { padding-block: var(--s-5); margin: 0; }

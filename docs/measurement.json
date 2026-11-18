@@ -1,0 +1,195 @@
+{
+  "dataset": "cfahlgren1/SWE-chat",
+  "seed": "bragproof-2026-11-18",
+  "listed": 5143,
+  "drawn": 300,
+  "read": 283,
+  "unread": [
+    "019d6aae-bfea-7010-8132-4ffa0755c94d: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "bc067eea-d059-48f4-af98-53e73ea84f1f: no steps",
+    "019d92b8-bb1a-7dd2-84be-2db2d545824e: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "bc028e5a-d949-4e61-a941-af3192c93e3b: no steps",
+    "019d6cca-56cc-7850-9ca0-e841d6382a98: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d743c-dc4e-7822-b434-0c0bc2909ab3: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d54ff-2d6f-7360-a607-fbe2bfdde496: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d9ffb-4d91-79a1-9cfb-7128aaee13b6: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d74c5-9ff5-7743-b35a-53ee692fc188: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d64e6-1100-7c31-8b07-2c05a218d49f: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d776c-0263-7043-b71f-ad630a286d04: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "c7a4f169-c753-4923-a425-f1627a54144d: no steps",
+    "019d638f-cd4b-7d73-9cc3-3214aaf533a4: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d6306-cf06-7193-b86e-12f73f94af8b: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d68bd-127b-7501-b5c6-23b56f1623f9: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d6625-1efc-7b82-8260-d5cb88852639: No agent messages found. A Claude Code session log has one JSON object per line.",
+    "019d638d-86fa-7321-883c-58120b6a8a9d: No agent messages found. A Claude Code session log has one JSON object per line."
+  ],
+  "commit": "896674392eff0a24d244375dd9d454d66870bbd5",
+  "askedFirst": {
+    "no": 80,
+    "yes": 178,
+    "unknown": 25
+  },
+  "k1": {
+    "sessions": 62,
+    "percent": 21.9
+  },
+  "notInDiff": {
+    "sessions": 28,
+    "percent": 9.9
+  },
+  "anyShown": {
+    "sessions": 78,
+    "percent": 27.6
+  },
+  "rulesVersion": "2026-11-19.1",
+  "groups": {
+    "skipped": {
+      "sessions": 7,
+      "percent": 2.5
+    },
+    "off": {
+      "sessions": 25,
+      "percent": 8.8
+    },
+    "config": {
+      "sessions": 25,
+      "percent": 8.8
+    },
+    "secrets": {
+      "sessions": 11,
+      "percent": 3.9
+    },
+    "outside": {
+      "sessions": 9,
+      "percent": 3.2
+    },
+    "undo": {
+      "sessions": 13,
+      "percent": 4.6
+    },
+    "hidden": {
+      "sessions": 0,
+      "percent": 0
+    },
+    "said": {
+      "sessions": 24,
+      "percent": 8.5
+    }
+  },
+  "rules": {
+    "said-no-run": {
+      "group": "said",
+      "findings": 33,
+      "sessions": 22,
+      "percent": 7.8
+    },
+    "lint-off": {
+      "group": "off",
+      "findings": 66,
+      "sessions": 22,
+      "percent": 7.8
+    },
+    "check-config": {
+      "group": "config",
+      "findings": 80,
+      "sessions": 18,
+      "percent": 6.4
+    },
+    "secret-read": {
+      "group": "secrets",
+      "findings": 40,
+      "sessions": 10,
+      "percent": 3.5
+    },
+    "installed-package": {
+      "group": "outside",
+      "findings": 11,
+      "sessions": 8,
+      "percent": 2.8
+    },
+    "commit-no-verify": {
+      "group": "skipped",
+      "findings": 9,
+      "sessions": 7,
+      "percent": 2.5
+    },
+    "force-push": {
+      "group": "undo",
+      "findings": 18,
+      "sessions": 6,
+      "percent": 2.1
+    },
+    "sandbox-off": {
+      "group": "config",
+      "findings": 53,
+      "sessions": 4,
+      "percent": 1.4
+    },
+    "env-dump": {
+      "group": "secrets",
+      "findings": 3,
+      "sessions": 3,
+      "percent": 1.1
+    },
+    "own-settings": {
+      "group": "config",
+      "findings": 5,
+      "sessions": 3,
+      "percent": 1.1
+    },
+    "branch-delete": {
+      "group": "undo",
+      "findings": 10,
+      "sessions": 3,
+      "percent": 1.1
+    },
+    "tests-deleted": {
+      "group": "off",
+      "findings": 4,
+      "sessions": 3,
+      "percent": 1.1
+    },
+    "said-last-failed": {
+      "group": "said",
+      "findings": 2,
+      "sessions": 2,
+      "percent": 0.7
+    },
+    "stash-drop": {
+      "group": "undo",
+      "findings": 2,
+      "sessions": 2,
+      "percent": 0.7
+    },
+    "reset-hard": {
+      "group": "undo",
+      "findings": 2,
+      "sessions": 2,
+      "percent": 0.7
+    },
+    "rm-outside": {
+      "group": "undo",
+      "findings": 3,
+      "sessions": 2,
+      "percent": 0.7
+    },
+    "pipe-to-shell": {
+      "group": "outside",
+      "findings": 1,
+      "sessions": 1,
+      "percent": 0.4
+    },
+    "test-skipped": {
+      "group": "off",
+      "findings": 3,
+      "sessions": 1,
+      "percent": 0.4
+    },
+    "checkout-all": {
+      "group": "undo",
+      "findings": 1,
+      "sessions": 1,
+      "percent": 0.4
+    }
+  }
+}

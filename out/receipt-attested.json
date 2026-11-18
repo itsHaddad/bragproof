@@ -1,0 +1,52 @@
+{
+  "v": 1,
+  "type": "bragproof/receipt",
+  "spec": {
+    "v": 1,
+    "claim": "The MCP reference server 'everything' has an echo tool that returns the message it was given.",
+    "subject": {
+      "kind": "mcp-stdio",
+      "name": "MCP Everything server",
+      "package": "@modelcontextprotocol/server-everything",
+      "version": "2.3.0",
+      "homepage": "https://github.com/modelcontextprotocol/servers"
+    },
+    "steps": [
+      {
+        "tool": "echo",
+        "arguments": {
+          "message": "bragproof-7f3a"
+        },
+        "expect": {
+          "contains": "bragproof-7f3a"
+        }
+      }
+    ],
+    "tags": [
+      "mcp",
+      "reference",
+      "testing"
+    ]
+  },
+  "result": {
+    "pass": true,
+    "subjectIntegrity": "sha512-GrmmVZxdvy2k7zjM4W0ROAs8Dot8+FrBacGHNI83+c5dePgQORErksMLg0g3BZsxiVLZ7qExdu/QOY2wBbD9Rw==",
+    "lockHash": "ec5ad2f114c1c966fcab3b85df9d90700aa98610f01a092462d390fef10f187d",
+    "steps": [
+      {
+        "tool": "echo",
+        "pass": true,
+        "outputHash": "a17662b9b9e02bdc3858f24e7c24a6ba1a53946395412944b54d7c6be81c9236",
+        "outputPreview": "Echo: bragproof-7f3a"
+      }
+    ],
+    "startedAt": "2026-11-12T00:20:51.294Z",
+    "finishedAt": "2026-11-12T00:20:54.309Z",
+    "runnerVersion": "0.1.0"
+  },
+  "bodyHash": "8f641675a1943b5b7d9ae5323c15b7a417e681fff31a155613fde21de949947f",
+  "evidence": {
+    "kind": "gcp-confidential-space",
+    "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjFiZTZmZjcyODdkNjQwMzE2ZGRjOTI5ZTFhOGIyMWZiY2E3ZTU0ZTciLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJicmFncHJvb2YiLCJleHAiOjE3OTQ0NDY0NjIsImlhdCI6MTc5NDQ0Mjg2MiwiaXNzIjoiaHR0cHM6Ly9jb25maWRlbnRpYWxjb21wdXRpbmcuZ29vZ2xlYXBpcy5jb20iLCJuYmYiOjE3OTQ0NDI4NjIsInN1YiI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2NvbXB1dGUvdjEvcHJvamVjdHMvbWFpbmRlc2stZGVza3Mvem9uZXMvZXVyb3BlLXdlc3Q0LWEvaW5zdGFuY2VzL2JyYWdwcm9vZi1td2Nzd3ZpdSIsImVhdF9ub25jZSI6IjhmNjQxNjc1YTE5NDNiNWI3ZDlhZTUzMjNjMTViN2E0MTdlNjgxZmZmMzFhMTU1NjEzZmRlMjFkZTk0OTk0N2YiLCJlYXRfcHJvZmlsZSI6Imh0dHBzOi8vY2xvdWQuZ29vZ2xlLmNvbS9jb25maWRlbnRpYWwtY29tcHV0aW5nL2NvbmZpZGVudGlhbC1zcGFjZS9kb2NzL3JlZmVyZW5jZS90b2tlbi1jbGFpbXMiLCJzZWNib290Ijp0cnVlLCJvZW1pZCI6MTExMjksImh3bW9kZWwiOiJHQ1BfSU5URUxfVERYIiwic3duYW1lIjoiQ09ORklERU5USUFMX1NQQUNFIiwic3d2ZXJzaW9uIjpbIjI2MTAwMSJdLCJhdHRlc3Rlcl90Y2IiOlsiSU5URUwiXSwiZGJnc3RhdCI6ImRpc2FibGVkLXNpbmNlLWJvb3QiLCJzdWJtb2RzIjp7ImNvbmZpZGVudGlhbF9zcGFjZSI6eyJzdXBwb3J0X2F0dHJpYnV0ZXMiOlsiTEFURVNUIiwiU1RBQkxFIiwiVVNBQkxFIl0sIm1vbml0b3JpbmdfZW5hYmxlZCI6eyJtZW1vcnkiOmZhbHNlfX0sImNvbnRhaW5lciI6eyJpbWFnZV9yZWZlcmVuY2UiOiJnaGNyLmlvL2l0c2hhZGRhZC9icmFncHJvb2YtcnVubmVyQHNoYTI1Njo3ZDRmNzZjYmUxNGUyZDIwMTY1OGQ1MjEzMWM2NjNhYjhkMzcwMWI0YmIwM2RkNWEyMmUyMTg5MGUyYTIzOWY1IiwiaW1hZ2VfZGlnZXN0Ijoic2hhMjU2OjdkNGY3NmNiZTE0ZTJkMjAxNjU4ZDUyMTMxYzY2M2FiOGQzNzAxYjRiYjAzZGQ1YTIyZTIxODkwZTJhMjM5ZjUiLCJyZXN0YXJ0X3BvbGljeSI6Ik5ldmVyIiwiaW1hZ2VfaWQiOiJzaGEyNTY6MDdjNjFhMGQ3MGE5ODIwNWUzMWI2MjRiODdmN2U1MTk4ZGQwNjY1MWRhN2M0M2E2MzdmOTY4NGY0MzI5N2U5MiIsImVudl9vdmVycmlkZSI6eyJDSEVDS19TUEVDX0I2NCI6ImV5SjJJam94TENKamJHRnBiU0k2SWxSb1pTQk5RMUFnY21WbVpYSmxibU5sSUhObGNuWmxjaUFuWlhabGNubDBhR2x1WnljZ2FHRnpJR0Z1SUdWamFHOGdkRzl2YkNCMGFHRjBJSEpsZEhWeWJuTWdkR2hsSUcxbGMzTmhaMlVnYVhRZ2QyRnpJR2RwZG1WdUxpSXNJbk4xWW1wbFkzUWlPbnNpYTJsdVpDSTZJbTFqY0MxemRHUnBieUlzSW01aGJXVWlPaUpOUTFBZ1JYWmxjbmwwYUdsdVp5QnpaWEoyWlhJaUxDSndZV05yWVdkbElqb2lRRzF2WkdWc1kyOXVkR1Y0ZEhCeWIzUnZZMjlzTDNObGNuWmxjaTFsZG1WeWVYUm9hVzVuSWl3aWRtVnljMmx2YmlJNklqSXVNeTR3SWl3aWFHOXRaWEJoWjJVaU9pSm9kSFJ3Y3pvdkwyZHBkR2gxWWk1amIyMHZiVzlrWld4amIyNTBaWGgwY0hKdmRHOWpiMnd2YzJWeWRtVnljeUo5TENKemRHVndjeUk2VzNzaWRHOXZiQ0k2SW1WamFHOGlMQ0poY21kMWJXVnVkSE1pT25zaWJXVnpjMkZuWlNJNkltSnlZV2R3Y205dlppMDNaak5oSW4wc0ltVjRjR1ZqZENJNmV5SmpiMjUwWVdsdWN5STZJbUp5WVdkd2NtOXZaaTAzWmpOaEluMTlYU3dpZEdGbmN5STZXeUp0WTNBaUxDSnlaV1psY21WdVkyVWlMQ0owWlhOMGFXNW5JbDE5In0sImVudiI6eyJDSEVDS19TUEVDX0I2NCI6ImV5SjJJam94TENKamJHRnBiU0k2SWxSb1pTQk5RMUFnY21WbVpYSmxibU5sSUhObGNuWmxjaUFuWlhabGNubDBhR2x1WnljZ2FHRnpJR0Z1SUdWamFHOGdkRzl2YkNCMGFHRjBJSEpsZEhWeWJuTWdkR2hsSUcxbGMzTmhaMlVnYVhRZ2QyRnpJR2RwZG1WdUxpSXNJbk4xWW1wbFkzUWlPbnNpYTJsdVpDSTZJbTFqY0MxemRHUnBieUlzSW01aGJXVWlPaUpOUTFBZ1JYWmxjbmwwYUdsdVp5QnpaWEoyWlhJaUxDSndZV05yWVdkbElqb2lRRzF2WkdWc1kyOXVkR1Y0ZEhCeWIzUnZZMjlzTDNObGNuWmxjaTFsZG1WeWVYUm9hVzVuSWl3aWRtVnljMmx2YmlJNklqSXVNeTR3SWl3aWFHOXRaWEJoWjJVaU9pSm9kSFJ3Y3pvdkwyZHBkR2gxWWk1amIyMHZiVzlrWld4amIyNTBaWGgwY0hKdmRHOWpiMnd2YzJWeWRtVnljeUo5TENKemRHVndjeUk2VzNzaWRHOXZiQ0k2SW1WamFHOGlMQ0poY21kMWJXVnVkSE1pT25zaWJXVnpjMkZuWlNJNkltSnlZV2R3Y205dlppMDNaak5oSW4wc0ltVjRjR1ZqZENJNmV5SmpiMjUwWVdsdWN5STZJbUp5WVdkd2NtOXZaaTAzWmpOaEluMTlYU3dpZEdGbmN5STZXeUp0WTNBaUxDSnlaV1psY21WdVkyVWlMQ0owWlhOMGFXNW5JbDE5IiwiSE9TVE5BTUUiOiJicmFncHJvb2YtbXdjc3d2aXUiLCJOT0RFX1ZFUlNJT04iOiIyMi4yMC4wIiwiUEFUSCI6Ii91c3IvbG9jYWwvc2JpbjovdXNyL2xvY2FsL2JpbjovdXNyL3NiaW46L3Vzci9iaW46L3NiaW46L2JpbiIsIllBUk5fVkVSU0lPTiI6IjEuMjIuMjIifSwiYXJncyI6WyJidW4iLCJzcmMvY2xpL21haW4udHMiLCJydW4iXX0sImdjZSI6eyJ6b25lIjoiZXVyb3BlLXdlc3Q0LWEiLCJwcm9qZWN0X2lkIjoibWFpbmRlc2stZGVza3MiLCJwcm9qZWN0X251bWJlciI6Ijg1NTA4ODc3OTQ4NiIsImluc3RhbmNlX25hbWUiOiJicmFncHJvb2YtbXdjc3d2aXUiLCJpbnN0YW5jZV9pZCI6Ijg5OTg1MzM2MjAwODExNDYwNzUifX0sInRkeCI6eyJnY3BfYXR0ZXN0ZXJfdGNiX3N0YXR1cyI6IlVwVG9EYXRlIiwiZ2NwX2F0dGVzdGVyX3RjYl9kYXRlIjoiMjAyNS0wNS0xNFQwMDowMDowMFoiLCJ0Y2JfZXZhbHVhdGlvbl9kYXRhX251bWJlciI6MTl9LCJnb29nbGVfc2VydmljZV9hY2NvdW50cyI6WyJjbGFpbWNoZWNrLXJ1bm5lckBtYWluZGVzay1kZXNrcy5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSJdfQ.Q6XyKnLygZiK0vsRZA_7zwcOF_DitshXdQGUrlDNRIzsM6TCw_xUptMdTh3tZjm4Wgm6wDanAmV8FGrWymicP331IFszfLZtlPEgJTWR9oVux32pLdJJBdPT2MMrShtKGrtBETTbHxbdKakNM6TxiQZaRC44wwlLuiHkXnZUPzbd_7xHNus0RzkGCYFuJPTX3WzvTKu5DvIQfuCYsuFIcoSajTlyHYKpjvYP_f4PWNvVfzx37QoheJkrLU8Fcq8pyycAniDDO1Y3EZ4eMw1wXBNfL2d-nCkwO0dBMz0iGLSyWmhoxvTmk-Dwt1MTzE7wxMjpa2vHOnP8Xpy_LKK0VA"
+  }
+}

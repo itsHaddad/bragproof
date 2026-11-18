@@ -1,0 +1,4 @@
+VM bragproof-mwcswviu (c3-standard-4, Intel TDX) is starting in europe-west4-a
+receipt found: {"ok":true,"level":"attested","pass":true,"facts":{"hardware":"GCP_INTEL_TDX","imageDigest":"sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5","imageReference":"ghcr.io/itshaddad/bragproof-runner@sha256:7d4f76cbe14e2d201658d52131c663ab8d3701b4bb03dd5a22e21890e2a239f5","issuedAt":"2026-11-12T00:21:02.000Z","host":"google-cloud:europe-west4-a"},"note":"ran in an accepted runner on GCP_INTEL_TDX at google-cloud:europe-west4-a"}
+VM bragproof-mwcswviu delete requested: 200
+receipt written to out/receipt-attested.json

@@ -1,0 +1,11 @@
+{
+  // A separate worker for looking at a branch before anything is published: bun run deploy:preview
+  // Served only at its workers.dev address, kept out of search by the noindex header the build adds for such
+  // addresses. Static files only: no server code, no database, no route on the public domain.
+  "name": "bragproof-rethink-preview",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": { "directory": "dist-preview", "html_handling": "auto-trailing-slash", "not_found_handling": "404-page" },
+  "observability": { "enabled": false }
+}
