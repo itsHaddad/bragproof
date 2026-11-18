@@ -48,6 +48,8 @@ body.dropping .panel { border-color: var(--accent); background: var(--accent-sof
 .bar rect { fill: var(--text); transform-box: fill-box; }
 .rates tbody tr:nth-child(2) .fill-x { animation-delay: 60ms; } .rates tbody tr:nth-child(3) .fill-x { animation-delay: 120ms; } .rates tbody tr:nth-child(4) .fill-x { animation-delay: 180ms; } .rates tbody tr:nth-child(5) .fill-x { animation-delay: 240ms; } .rates tbody tr:nth-child(6) .fill-x { animation-delay: 300ms; }
 [data-reveal].wait .fill-x { animation-play-state: paused; }
+.rates td.num, .rates th.num { padding-left: var(--s-3); }
+.tab { white-space: nowrap; }
 .rates td.num { text-align: right; white-space: nowrap; padding-right: 0; }
 .caption { color: var(--muted); font-size: var(--step--1); margin-top: var(--s-3); }
 
