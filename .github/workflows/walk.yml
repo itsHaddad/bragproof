@@ -1,0 +1,37 @@
+name: walk
+# The design gate's runner job (e2e/measure.ts): every page and state at 390 and 1280, light and dark, then 320 px,
+# reduced motion, paint and layout shift on a phone profile, bytes on the wire, keyboard, first screen, motion.
+# It measures the address in e2e/preview.txt and fails unless that address serves the commit this run checked out.
+on:
+  # A push that changes e2e/walk.run starts a run (a new workflow cannot be started by hand until it is on the
+  # default branch).
+  push:
+    paths: [e2e/walk.run]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Address to walk (default is the one in e2e/preview.txt)
+        required: false
+permissions:
+  contents: read
+jobs:
+  walk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - name: gate measurements
+        run: BASE_URL="${INPUT_URL:-$(cat e2e/preview.txt)}" bun e2e/measure.ts
+        env:
+          INPUT_URL: ${{ inputs.base_url }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate
+          path: e2e-shots
+          retention-days: 30

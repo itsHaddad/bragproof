@@ -20,8 +20,15 @@
 .where { display: flex; gap: var(--s-2); align-items: flex-start; color: var(--muted); font-size: var(--step--1); margin: 0; }
 .where .icon { margin-top: 1px; }
 .where code { font-family: var(--font-mono); color: var(--text); overflow-wrap: anywhere; }
-.status { min-height: 1.6em; margin: var(--s-3) 0 0; font-weight: 600; }
+.status { margin: var(--s-3) 0 0; font-weight: 600; }
+.status:empty { margin: 0; }
 .error { margin: var(--s-3) 0 0; }
+@media (max-width: 59.99rem) {
+  .hero { padding-top: var(--s-5); }
+  .hero .split { gap: var(--s-5); }
+  .hero .lead { font-size: var(--step-0); margin-bottom: var(--s-5); }
+  .actions .btn { padding-inline: var(--s-4); }
+}
 .paste { margin-top: var(--s-4); display: grid; gap: var(--s-3); }
 .paste textarea { min-height: 9rem; font-family: var(--font-mono); resize: vertical; }
 .paste .btn { justify-self: start; }

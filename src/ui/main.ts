@@ -23,7 +23,6 @@ const backButton = $("back");
 
 let report: Report | null = null;
 let example: Report | null = null;
-let label = "Example session";
 let selected = 0;
 
 function fill(el: HTMLElement | null, node: Node): void {
@@ -32,7 +31,6 @@ function fill(el: HTMLElement | null, node: Node): void {
 
 function show(next: Report, name: string, fresh: boolean): void {
   report = next;
-  label = name;
   selected = 0;
   const isExample = next === example;
   fill(panelEl, toDom(panel(next, name, selected, isExample)));

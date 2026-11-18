@@ -10,7 +10,7 @@ import { quote } from "./text.ts";
 import type { Finding, Report, Session } from "./types.ts";
 
 /** Changes whenever a rule changes what it reports. A report id is only comparable under the same rules. */
-export const RULES = "2026-11-18.2";
+export const RULES = "2026-11-18.3";
 
 /** Rules measured too imprecise to show. See docs/MEASUREMENT.md for the numbers that put them here:
  * of 30 "said the tests pass" findings read by hand, 17 were wrong and at most 13 could be right. */

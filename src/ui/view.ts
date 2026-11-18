@@ -56,21 +56,29 @@ export function panel(report: Report, label: string, selected: number, example: 
   return h(
     "div",
     { class: "panel-body" },
-    h("p", { class: "source" }, h("span", { class: example ? "chip chip-example" : "chip" }, label), h("span", { class: "muted num" }, `${plural(report.session.steps, "step", "steps")}, ${plural(report.session.turns, "request", "requests")}`)),
-    report.session.closing ? h("div", { class: "brag" }, h("p", { class: "brag-label muted" }, "What the agent said at the end"), h("p", { class: "brag-text" }, `“${report.session.closing}”`)) : false,
-    h("p", { class: "tape-label muted" }, "What the log shows"),
-    tape(report, selected),
-    kinds(report),
-    readout(report, selected),
     h(
       "div",
-      { class: n > 1 ? "stepper" : "stepper is-off" },
-      h("button", { class: "btn btn-plain", type: "button", "data-step": "-1" }, icon("left"), "Previous"),
-      h("input", { class: "scrub", type: "range", id: "scrub", min: 1, max: Math.max(n, 1), value: selected + 1, "aria-label": "Which finding to show" }),
-      h("button", { class: "btn btn-plain", type: "button", "data-step": "1" }, "Next", icon("right")),
+      { class: "panel-main" },
+      h("p", { class: "source" }, h("span", { class: example ? "chip chip-example" : "chip" }, label), h("span", { class: "muted num" }, `${plural(report.session.steps, "step", "steps")}, ${plural(report.session.turns, "request", "requests")}`)),
+      report.session.closing ? h("div", { class: "brag" }, h("p", { class: "brag-label muted" }, "What the agent said at the end"), h("p", { class: "brag-text" }, `“${report.session.closing}”`)) : false,
+      h("p", { class: "tape-label muted" }, "What the log shows"),
+      tape(report, selected),
+      kinds(report),
+      readout(report, selected),
+      h(
+        "div",
+        { class: n > 1 ? "stepper" : "stepper is-off" },
+        h("button", { class: "btn btn-plain", type: "button", "data-step": "-1" }, icon("left"), h("span", { class: "stepper-word" }, "Previous")),
+        h("input", { class: "scrub", type: "range", id: "scrub", min: 1, max: Math.max(n, 1), value: selected + 1, "aria-label": "Which finding to show" }),
+        h("button", { class: "btn btn-plain", type: "button", "data-step": "1" }, h("span", { class: "stepper-word" }, "Next"), icon("right")),
+      ),
     ),
-    counts(report),
-    asked === false ? h("p", { class: "note" }, icon("note"), h("span", {}, "This session ran with permission prompts switched off: the agent did not ask before each step.")) : false,
+    h(
+      "div",
+      { class: "panel-extra" },
+      counts(report),
+      asked === false ? h("p", { class: "note" }, icon("note"), h("span", {}, "This session ran with permission prompts switched off: the agent did not ask before each step.")) : false,
+    ),
   );
 }
 

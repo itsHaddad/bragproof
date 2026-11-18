@@ -97,7 +97,7 @@ export function hostsIn(s: Simple): string[] {
 
 const outside = (target: string, cwd: string): boolean => {
   const t = target.replace(/\/+$/, "");
-  if (t === "" || t === "~" || t === "$HOME" || t === "${HOME}" || t === ".." || t.startsWith("../") || t.startsWith("~/") || t.startsWith("$HOME/")) return true;
+  if (t === "" || t === "~" || /^\$\{?HOME\}?$/.test(t) || t === ".."|| t.startsWith("../") || t.startsWith("~/") || t.startsWith("$HOME/")) return true;
   if (/^\/(tmp|var\/folders|private\/tmp|dev\/shm)(\/|$)/.test(t)) return false;
   return t.startsWith("/") && !(cwd && (t === cwd || t.startsWith(`${cwd}/`)));
 };

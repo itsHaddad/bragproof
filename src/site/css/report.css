@@ -1,8 +1,16 @@
 /* The working panel (tape, one finding at a time) and the ledger of every finding. */
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-5); transition: background-color var(--t-quick) ease, border-color var(--t-quick) ease; }
 .panel:focus-visible { outline-offset: 4px; }
-.panel-body { display: grid; gap: var(--s-3); }
+.panel-body, .panel-main, .panel-extra { display: grid; gap: var(--s-3); }
 .panel-body p { margin: 0; }
+/* On a phone the working part (tape, one finding, the stepper) is the panel; the counts sit under it, so the part
+   a person uses is inside the first screen. */
+@media (max-width: 59.99rem) {
+  .panel { background: none; border: 0; padding: 0; }
+  .panel-main { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-4); }
+  .brag-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .readout { min-height: 11rem; }
+}
 .source { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
 .chip { display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--s-3); border-radius: var(--r-full); background: var(--surface-2); font-weight: 600; font-size: var(--step--1); overflow-wrap: anywhere; }
 .chip-example { background: var(--accent-soft); }
