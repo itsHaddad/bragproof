@@ -7,7 +7,7 @@ import { LIMITS } from "../core/parse.ts";
 import type { Report } from "../core/types.ts";
 import { toHtml } from "../ui/h.ts";
 import { icon, mark } from "../ui/icons.ts";
-import { fingerprint, ledger, panel } from "../ui/view.ts";
+import { fingerprint, ledger, panel, startAt } from "../ui/view.ts";
 import { esc, sourceLink } from "./layout.ts";
 import { RULE_TEXT } from "./rules-text.ts";
 
@@ -24,7 +24,7 @@ function rates(): string {
     const v = M.groups[g.id] ?? { sessions: 0, percent: 0 };
     return `<tr><td>${toHtml(mark(g.shape))} ${esc(g.title)}</td><td class="bar-cell"><svg class="bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="fill-x" width="${Math.round((v.percent / top) * 1000) / 10}" height="10"/></svg></td><td class="num">${v.sessions} of ${M.read}</td><td class="num">${pct(v.percent)}</td></tr>`;
   }).join("");
-  return `<div class="wide-table" data-reveal><table class="rates rules-table"><thead><tr><th scope="col">Kind of finding</th><th scope="col"><span class="visually-hidden">Share as a bar</span></th><th scope="col" class="num">Sessions</th><th scope="col" class="num">Share</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="wide-table" data-reveal><table class="rates rules-table"><caption class="visually-hidden">Share of ${M.read} public sessions with at least one finding of each kind</caption><thead><tr><th scope="col">Kind of finding</th><th scope="col"><span class="visually-hidden">Share as a bar</span></th><th scope="col" class="num">Sessions</th><th scope="col" class="num">Share</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 /** One row of the hand-reading table: what was read, a bar for the share that held, and the count. */
@@ -37,13 +37,14 @@ export function home(example: Report, origin: string): string {
   return `<section class="hero page"><div class="split">
 <div class="hero-text">
 <h1 data-enter="0">The diff shows the code. The log shows the rest.</h1>
-<p class="lead" data-enter="1">Give it a coding agent's session log. See each check skipped, key file opened and package brought in, with the line that shows it.</p>
+<p class="lead" data-enter="1">Give it a coding agent's session log. See the skipped checks, opened key files and installed packages its rules recognise, each with the line that shows it.</p>
 <div class="actions" data-enter="2">
 <button class="btn btn-primary" id="choose" type="button">${toHtml(icon("file"))}Choose a log file</button>
 <input class="visually-hidden" type="file" id="file" accept=".jsonl,.json,.txt,application/json,text/plain" tabindex="-1" aria-hidden="true">
 <button class="btn btn-plain" id="paste-open" type="button" aria-expanded="false" aria-controls="paste">${toHtml(icon("paste"))}Paste text</button>
 <button class="btn btn-plain" id="back" type="button" hidden>Back to the example</button>
 </div>
+<p class="where-short">${toHtml(icon("lock"))}<span>Read on this device, sent nowhere.</span></p>
 <p class="where" data-enter="3">${toHtml(icon("lock"))}<span>Read on this device and sent nowhere. Claude Code keeps its logs in <code>~/.claude/projects</code>. Up to ${megabytes}&nbsp;MB.</span></p>
 <div class="feedback">
 <div class="paste" id="paste" hidden>
@@ -54,19 +55,19 @@ export function home(example: Report, origin: string): string {
 <p class="error" id="error" role="alert" hidden></p>
 </div>
 </div>
-<div class="panel" id="panel" tabindex="-1" data-enter="2" aria-label="Report">${toHtml(panel(example, "Example session", 0, true))}</div>
+<div class="panel" id="panel" tabindex="-1" data-enter="2" aria-label="Report">${toHtml(panel(example, "Example session", startAt(example), true))}</div>
 </div></section>
 
 <section class="section page" aria-labelledby="h-ledger">
-<div class="split"><h2 id="h-ledger">Every finding, with its line</h2><p class="lead">Each row is something the log shows the agent did. It may have been asked to: a log cannot say. Press a row to find it on the tape.</p></div>
-<div id="ledger">${toHtml(ledger(example, 0))}</div>
+<div class="split"><h2 id="h-ledger">Every finding, with its line</h2><p class="lead">Each row is something the log shows the agent did, asked for or not: a log cannot say. Press a row to find it on the tape.</p></div>
+<div id="ledger">${toHtml(ledger(example, startAt(example)))}</div>
 </section>
 
 <section class="section page" aria-labelledby="h-rates"><div class="split flip">
 ${rates()}
 <div>
-<h2 id="h-rates">How often agents do this</h2>
-<p>These rules were run over ${M.read} real sessions that their authors made public. ${M.anyShown.sessions} of them (${pct(M.anyShown.percent)}) had at least one finding, and ${M.notInDiff.sessions} (${pct(M.notInDiff.percent)}) had one that no diff can show. ${M.askedFirst.no} ran with permission prompts switched off.</p>
+<h2 id="h-rates">How often it showed up in ${M.read} public sessions</h2>
+<p>${M.anyShown.sessions} of them (${pct(M.anyShown.percent)}) had at least one finding, and ${M.notInDiff.sessions} (${pct(M.notInDiff.percent)}) had one that no diff can show. ${M.askedFirst.no} ran with permission prompts switched off. Other people's rates will differ.</p>
 <p><a class="more" href="/method/">How this was measured, and how to run it again</a></p>
 </div>
 </div></section>
@@ -84,41 +85,44 @@ ${rates()}
 <div id="fingerprint">${toHtml(fingerprint(example))}</div>
 <button class="btn btn-plain" id="copy-id" type="button">${toHtml(icon("copy"))}Copy the report id <span class="copy-said" role="status"></span></button>
 <p class="command">bun src/cli.ts session.jsonl</p>
-<p class="caption">The same file and rules give the same id in a terminal. Try it with the <a href="${sourceLink(origin, "")}">source</a> and the <a href="/example-session.jsonl">example log</a>.</p>
+<p class="caption">The same file and rules give the same id in a terminal. Try the <a href="${sourceLink(origin, "")}">source</a> on the <a href="/example-session.jsonl">example log</a>.</p>
 </div>
 </div></section>
 <script type="application/json" id="example-report">${JSON.stringify(example).replace(/</g, "\\u003c")}</script>`;
 }
 
 export function method(origin: string): string {
+  const topRule = Math.max(1, ...RULE_TEXT.map((r) => M.rules[r.id]?.sessions ?? 0));
   const ruleRows = RULE_TEXT.map((r) => {
     const g = groupOf(r.group);
     const m = M.rules[r.id];
-    return `<tr><td>${toHtml(mark(g.shape))}${esc(g.short)}</td><td>${esc(r.shows)}</td><td class="num">${m ? `${m.sessions} of ${M.read}` : `0 of ${M.read}`}</td></tr>`;
+    const share = m ? Math.round((m.sessions / topRule) * 1000) / 10 : 0;
+    return `<tr><td class="rule-kind">${toHtml(mark(g.shape))}${esc(g.short)}</td><td class="rule-shows">${esc(r.shows)}</td><td class="num rule-n">${m ? `${m.sessions} of ${M.read}` : `0 of ${M.read}<br><span class="muted">not seen</span>`}<svg class="bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="fill-x" width="${share}" height="10"/></svg></td></tr>`;
   }).join("");
+  const unseen = RULE_TEXT.filter((r) => !M.rules[r.id]).length;
   return `<section class="hero page"><div class="split">
 <div>
 <h1 data-enter="0">How far to trust it</h1>
-<p class="lead" data-enter="1">Each rule looks for one thing a session log can show beyond doubt, such as a commit made with its checks off. A finding is a fact with its line. There is no score.</p>
+<p class="lead" data-enter="1">Each rule looks for one thing a session log records directly, such as a commit made with its checks off. A finding is a fact with its line. There is no score.</p>
 <p class="muted" data-enter="2">Only Claude Code session logs are read for now. Other formats are refused with a message.</p>
 </div>
-<div class="wide-table" data-enter="2"><table class="rates"><thead><tr><th scope="col">Read by hand against the log</th><th scope="col"><span class="visually-hidden">Share as a bar</span></th><th scope="col" class="num">Held</th></tr></thead><tbody>
+<div class="wide-table" data-enter="2"><table class="rates"><caption class="visually-hidden">Findings read by hand against the log, and how many held</caption><thead><tr><th scope="col">Read by hand against the log</th><th scope="col"><span class="visually-hidden">Share as a bar</span></th><th scope="col" class="num">Held</th></tr></thead><tbody>
 ${held("Checks skipped or switched off, key files opened", READ_BY_HAND.primary.held, READ_BY_HAND.primary.read, "")}
 ${held("Brought in, hard to undo (before three fixes)", READ_BY_HAND.other.held, READ_BY_HAND.other.read, "")}
 ${held("“Said the tests pass”, not shown in the log", READ_BY_HAND.said.heldAtMost, READ_BY_HAND.said.read, "at most; switched off")}
-</tbody></table><p class="caption">How many findings, drawn at random, were what they said. The reading was done by the builder, a language model, and not by an outside person: treat it as a first check.</p></div>
+</tbody></table><p class="caption">How many findings, drawn at random, were what they said. The reading was done by the builder, a language model, and not by an outside person, on the first version of the rules. The counts further down come from the current rules and were not read again. Treat it as a first check.</p></div>
 </div></section>
 
 <section class="section page" aria-labelledby="h-rules">
-<div class="split"><h2 id="h-rules">The rules</h2><p class="lead">Rules <span class="mono">${esc(RULES)}</span>. The last column is how many of ${M.read} public sessions each rule reported in, measured at commit <span class="mono">${esc(M.commit.slice(0, 7))}</span>.</p></div>
-<div class="wide-table" data-reveal><table class="rules-table"><thead><tr><th scope="col">Kind</th><th scope="col">What the log has to show</th><th scope="col" class="num">Sessions</th></tr></thead><tbody>${ruleRows}</tbody></table></div>
+<div class="split"><h2 id="h-rules">The rules</h2><p class="lead">Rules <span class="mono">${esc(RULES)}</span>. The last column is how many of ${M.read} public sessions each rule reported in, measured at commit <span class="mono">${esc(M.commit.slice(0, 7))}</span>. ${unseen} of the ${RULE_TEXT.length} rules were not seen there, so they have not been checked against real sessions. How much the rules miss was not measured.</p></div>
+<div class="rules-wrap" data-reveal><table class="rules-table rules-full"><caption class="visually-hidden">Every rule, what the log has to show for it, and how many public sessions it reported in</caption><thead><tr><th scope="col">Kind</th><th scope="col">What the log has to show</th><th scope="col" class="num">Sessions</th></tr></thead><tbody>${ruleRows}</tbody></table></div>
 </section>
 
 <section class="section page" aria-labelledby="h-measured"><div class="split">
 <div class="prose">
 <h2 id="h-measured">How the numbers were made</h2>
 <p>${M.drawn} sessions were drawn at random, with a fixed seed, from the ${M.listed.toLocaleString("en-GB")} public traces of the SWE-chat dataset. ${M.read} were Claude Code logs with at least one step and were read; the rest were another agent's format or empty.</p>
-<p>${M.k1.sessions} of the ${M.read} (${pct(M.k1.percent)}) had a check skipped or switched off, or a key file opened. Then findings were drawn at random and read against the log; the table at the top of this page is the result.</p>
+<p>${M.k1.sessions} of the ${M.read} (${pct(M.k1.percent)}) had a check skipped or switched off, a key file opened, or a pipeline or settings file touched. Then findings were drawn at random and read against the log; the table at the top of this page is the result.</p>
 <p>The pass marks were written down before the first run: <a href="${sourceLink(origin, "docs/RETHINK.md")}">the plan</a>, <a href="${sourceLink(origin, "docs/MEASUREMENT.md")}">the result</a>.</p>
 </div>
 <div class="card" data-reveal>
@@ -146,6 +150,7 @@ ${held("“Said the tests pass”, not shown in the log", READ_BY_HAND.said.held
 <div class="prose">
 <h2>Your log stays with you</h2>
 <p>The page has no place to send a log to. It is a set of files with no server code behind them, and its content policy forbids the script from connecting to any address, this one included. You can load the page, switch the network off, and it still works.</p>
+<p>One thing does leave your browser that is not ours to switch off here: the host, Cloudflare, asks browsers to report failed connections to it. Such a report holds the page's address and the error. It does not hold a log.</p>
 <p>Nothing is stored on your device either. Closing the tab forgets the log.</p>
 <p>Lines quoted from a log are shown as text. Hidden and direction-changing characters are replaced by their code, so what you read is what is there.</p>
 <p><a class="more" href="${sourceLink(origin, "SECURITY.md")}">Security notes and threat model</a></p>

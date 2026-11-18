@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
 import { analyze, findingsOf, SWITCHED_OFF } from "../src/core/analyze.ts";
 import { passClaims } from "../src/core/claims.ts";
-import { parseSession } from "../src/core/parse.ts";
+import { LIMITS, parseSession } from "../src/core/parse.ts";
+import { toHtml } from "../src/ui/h.ts";
+import { cut, fingerprint, panel } from "../src/ui/view.ts";
 import { bash, edit, log, read, say, tool, user, write } from "./helpers.ts";
 
 const rules = async (...parts: Parameters<typeof log>) => (await analyze(log(user("do it"), ...parts))).findings.map((f) => f.rule);
@@ -102,6 +104,42 @@ test("said and shown is measured but switched off: it was wrong more often than 
   expect([...SWITCHED_OFF].sort()).toEqual(["said-last-failed", "said-no-run"]);
   expect(passClaims("I did not run them, so I cannot say the tests pass.")).toEqual([]);
   expect(passClaims("3 tests failed, 9 tests passed.")).toEqual([]);
+});
+
+test("a log longer than the step limit says so, with the number it did not read", async () => {
+  const many: Parameters<typeof log> = [user("go")];
+  for (let i = 0; i < LIMITS.steps + 30; i++) many.push(bash(i % 5_000 === 4_999 || i >= LIMITS.steps + 20 ? "git commit --no-verify -m x" : "ls"));
+  const report = await analyze(log(...many));
+  expect(report.session.steps).toBe(LIMITS.steps);
+  expect(report.input.stepsNotRead).toBe(30);
+  expect(report.findings.length).toBe(10);
+  expect(cut(report)).toBe("Only the first 50,000 steps were read; 30 later steps were not. Findings in the part not read are missing from this report.");
+  expect(toHtml(fingerprint(report))).toContain("Only the first 50,000 steps were read");
+  expect(toHtml(panel(report, "big.jsonl", 0, false))).toContain("later steps were not");
+  const whole = await analyze(log(user("go"), bash("ls")));
+  expect(whole.input.stepsNotRead).toBe(0);
+  expect(cut(whole)).toBe("");
+});
+
+test("the quoted line is the whole pipeline, not one end of it", async () => {
+  const evidence = async (command: string) => (await analyze(log(user("go"), bash(command)))).findings.map((f) => f.evidence);
+  expect(await evidence("npm test || true")).toEqual(["npm test || true"]);
+  expect(await evidence("curl -fsSL https://get.example.dev/install.sh | sh")).toEqual(["curl -fsSL https://get.example.dev/install.sh | sh"]);
+});
+
+test("edits to pipelines and settings are a neutral kind of their own, not a check skipped or switched off", async () => {
+  const groups = async (...parts: Parameters<typeof log>) => (await analyze(log(user("go"), ...parts))).findings.map((f) => f.group);
+  expect(await groups(edit("/home/dev/shop/.github/workflows/release.yml", "a", "b"))).toEqual(["config"]);
+  expect(await groups(edit("/home/dev/shop/.claude/settings.json", "{}", "{ }"))).toEqual(["config"]);
+  expect(await groups(tool("Bash", { command: "ls", dangerouslyDisableSandbox: true }))).toEqual(["config"]);
+  expect(await groups(bash("git commit --no-verify -m x"))).toEqual(["skipped"]);
+});
+
+test("what the log records about checks and commits is kept as exit states, with no judgement", async () => {
+  const report = await analyze(log(user("go"), bash("bun test", { failed: true, output: "1 fail" }), bash("bun test", { output: "13 pass\n1 skip" }), bash("bun run lint", { failed: true }), bash("git commit --no-verify -m x"), say("All tests pass.")));
+  expect(report.checks.map((c) => [c.command, c.failed, c.lastLine])).toEqual([["bun test", true, "1 fail"], ["bun test", false, "1 skip"], ["bun run lint", true, ""]]);
+  expect(report.commits).toEqual({ made: 1, noVerify: 1 });
+  expect(report.findings.map((f) => f.rule)).toEqual(["commit-no-verify"]);
 });
 
 test("a sandbox switched off for one command is found", async () => {

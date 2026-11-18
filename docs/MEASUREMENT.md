@@ -55,7 +55,29 @@ The pick survives, narrowed: actions are reported, claims are not.
 | Hidden text shown to the agent | 0 | 0% |
 | Ran with permission prompts switched off | 80 | 28.3% |
 
+## Regrouped after review (run 4, commit `8966743`, 19 November)
+
+An independent review pointed out that two kinds of rule inflated the headline rates: "edited a CI workflow or
+commit-hook file" fires on any edit, and "ran outside the sandbox" and "edited the agent's own settings" are not
+checks being skipped. They now sit in a kind of their own, "Settings and pipelines touched". No rule changed what it
+matches; `docs/measurement.json` and the site now carry these figures, and the table above is kept as the record
+of what was first published.
+
+| Kind | Sessions of 283 | Share |
+|---|---|---|
+| Checks skipped | 7 | 2.5% |
+| Checks switched off in the code | 25 | 8.8% |
+| Settings and pipelines touched | 25 | 8.8% |
+| A finding no diff can show (skipped, keys, hard to undo) | 28 | 9.9% |
+| Any finding | 78 | 27.6% |
+
+K1 as it was defined (the same rules) is unchanged at 62 of 283. Counted without the neutral kind it would be
+lower; that figure was not computed.
+
 ## Limits
+
+- The 39-of-40 reading was done on run 1's rule version. Later counts were not read by hand again.
+- 11 of the 28 rules never fired in the 283 sessions, so nothing is known about their precision on real logs.
 
 - The hand reading was done by the builder, a language model, from the workflow's output. No outside person has
   repeated it. Run 3's counts were not read by hand again.

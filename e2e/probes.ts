@@ -74,6 +74,17 @@ export async function firstScreen(browser: Browser): Promise<void> {
   check(first.inside >= 60 && first.tapeBottom <= 844, `first screen: ${first.inside}% of the working panel and the whole tape (bottom ${first.tapeBottom}) inside 844 px`);
   check(first.buttonBottom <= 844 && first.buttonHeight >= 44, `first screen: the primary button (bottom ${first.buttonBottom}, ${first.buttonHeight} px high) is inside 844 px`);
   check(first.primaries === 1, `first screen: one primary button in the view (${first.primaries})`);
+  const marks = await page.evaluate(() => [...document.querySelectorAll(".tape-mark")].map((el) => Math.round(el.getBoundingClientRect().width * 10) / 10));
+  check(marks.length > 0 && Math.min(...marks) >= 10, `first screen: tape marks are at least 10 px wide at 390 (${Math.min(...marks)})`);
+  const short = await page.evaluate(() => (document.querySelector(".where-short")?.getBoundingClientRect().top ?? 9999) < (document.querySelector(".panel-main")?.getBoundingClientRect().top ?? 0));
+  check(short, "first screen: \"Read on this device, sent nowhere\" sits between the buttons and the panel");
+  await page.goto(`${BASE}/method/`, { waitUntil: "load" });
+  const rules = await page.evaluate(() => {
+    const wrap = document.querySelector(".rules-wrap") as HTMLElement;
+    const cells = [...document.querySelectorAll(".rules-full td")].map((el) => el.getBoundingClientRect().right);
+    return { inner: wrap.scrollWidth - wrap.clientWidth, right: Math.round(Math.max(...cells)), view: window.innerWidth };
+  });
+  check(rules.inner <= 1 && rules.right <= rules.view, `method at 390: the rules table fits with no inner sideways scroll (overflow ${rules.inner}, right edge ${rules.right} of ${rules.view})`);
   report.firstScreen = first;
   await ctx.close();
 }
@@ -87,7 +98,7 @@ export async function keyboard(browser: Browser): Promise<void> {
   await page.waitForSelector("html.js");
   const stops: string[] = [];
   const bad: string[] = [];
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 60; i++) {
     await page.keyboard.press("Tab");
     const at = await page.evaluate(() => {
       const el = document.activeElement as HTMLElement | null;
@@ -108,10 +119,17 @@ export async function keyboard(browser: Browser): Promise<void> {
   // Arrow keys on the range move through findings; Enter on a row picks it; Space on the paste button opens the field.
   await page.focus("#scrub");
   await page.keyboard.press("ArrowRight");
-  check((await page.textContent(".readout-count")) === "2 of 7", "keyboard: the right arrow on the range shows the next finding");
-  await page.focus(".row[data-i='5']");
+  const moved = await page.evaluate(() => ({ value: (document.querySelector("#scrub") as HTMLInputElement).value, text: document.querySelector("#readout")?.textContent ?? "" }));
+  check(moved.text.includes(`Step ${moved.value} of 34`) && moved.text.includes("No rule matched this step"), `keyboard: the right arrow on the slider reads the next step, finding or not (step ${moved.value})`);
+  await page.focus(".row[data-i='4']");
   await page.keyboard.press("Enter");
-  check((await page.textContent(".readout-count")) === "6 of 7" && (await page.getAttribute(".row[data-i='5']", "aria-pressed")) === "true", "keyboard: Enter on a row shows that finding");
+  check((await page.textContent(".readout-count")) === "5 of 6" && (await page.getAttribute(".row[data-i='4']", "aria-pressed")) === "true", "keyboard: Enter on a row shows that finding");
+  await page.focus("button.count[data-group='undo']");
+  await page.keyboard.press("Enter");
+  check((await page.textContent(".readout-count")) === "6 of 6", "keyboard: Enter on a count goes to the first finding of that kind");
+  const box = await page.locator("#tape").boundingBox();
+  if (box) await page.mouse.click(box.x + box.width * 0.02, box.y + box.height * 0.8);
+  check(((await page.textContent("#readout")) ?? "").includes("Step 1 of 34"), "tape: pressing a tick reads that step");
   await page.focus("#paste-open");
   await page.keyboard.press("Space");
   check((await page.evaluate(() => document.activeElement?.id)) === "paste-text", "keyboard: Space opens the paste field and moves to it");
@@ -143,7 +161,7 @@ export async function motion(browser: Browser): Promise<void> {
     await page.click("[data-step='1']");
     await page.waitForTimeout(60);
     await page.screenshot({ path: `${OUT}/motion-${width}-mid-step.jpg`, type: "jpeg", quality: 70 });
-    await choose(page, gateStates()[0]!);
+    await choose(page, gateStates().find((s) => s.name === "full")!);
     await page.waitForTimeout(250);
     await page.screenshot({ path: `${OUT}/motion-${width}-mid-read.jpg`, type: "jpeg", quality: 70 });
     await ctx.close();

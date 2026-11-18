@@ -7,8 +7,8 @@ import { quote } from "../core/text.ts";
 import { NotALog, type Report } from "../core/types.ts";
 import { toDom } from "./h.ts";
 import { reduced, replay, reveals } from "./motion.ts";
-import { cursorAt } from "./tape.ts";
-import { fingerprint, ledger, panel, readout } from "./view.ts";
+import { cursorAt, stepAt } from "./tape.ts";
+import { cut, fingerprint, ledger, panel, readout, startAt } from "./view.ts";
 
 const $ = <T extends HTMLElement>(id: string): T | null => document.getElementById(id) as T | null;
 const panelEl = $("panel");
@@ -23,7 +23,9 @@ const backButton = $("back");
 
 let report: Report | null = null;
 let example: Report | null = null;
-let selected = 0;
+/** The finding on show, or -1 when the step on show has none. */
+let selected = -1;
+let step = 1;
 
 function fill(el: HTMLElement | null, node: Node): void {
   if (el) el.replaceChildren(node);
@@ -31,7 +33,8 @@ function fill(el: HTMLElement | null, node: Node): void {
 
 function show(next: Report, name: string, fresh: boolean): void {
   report = next;
-  selected = 0;
+  selected = startAt(next);
+  step = next.findings[selected]?.step ?? 1;
   const isExample = next === example;
   fill(panelEl, toDom(panel(next, name, selected, isExample)));
   fill(ledgerEl, toDom(ledger(next, selected)));
@@ -43,25 +46,39 @@ function show(next: Report, name: string, fresh: boolean): void {
   }
 }
 
-/** Moves to another finding without rebuilding the panel, so the control in use keeps the keyboard. */
-function select(index: number): void {
-  if (!report || report.findings.length === 0) return;
-  selected = Math.max(0, Math.min(report.findings.length - 1, index));
-  const finding = report.findings[selected];
+/** Shows one step without rebuilding the panel, so the control in use keeps the keyboard. */
+function goTo(nextStep: number, finding = -1): void {
+  if (!report || report.session.steps === 0) return;
+  step = Math.max(1, Math.min(report.session.steps, nextStep));
+  selected = finding >= 0 ? finding : report.findings.findIndex((f) => f.step === step);
   for (const el of document.querySelectorAll(".tape-mark, .row")) {
     const on = el.getAttribute("data-i") === String(selected);
     el.classList.toggle("is-on", on);
     if (el.classList.contains("row")) el.setAttribute("aria-pressed", on ? "true" : "false");
   }
-  if (finding) document.querySelector(".tape-cursor")?.setAttribute("transform", cursorAt(finding.step, report.session.steps));
+  document.querySelector(".tape-cursor")?.setAttribute("transform", cursorAt(step, report.session.steps));
   const old = $("readout");
   if (old) {
-    const fresh = toDom(readout(report, selected)) as HTMLElement;
+    const fresh = toDom(readout(report, selected, step)) as HTMLElement;
     old.replaceWith(fresh);
     if (!reduced()) fresh.classList.add("readout-in");
   }
   const scrub = $<HTMLInputElement>("scrub");
-  if (scrub && scrub.value !== String(selected + 1)) scrub.value = String(selected + 1);
+  if (scrub && scrub.value !== String(step)) scrub.value = String(step);
+}
+
+const goToFinding = (index: number): void => {
+  const f = report?.findings[index];
+  if (f) goTo(f.step, index);
+};
+
+/** The next finding after the step on show (or the one before it), wherever the slider has been left. */
+function stepFinding(direction: number): void {
+  if (!report || report.findings.length === 0) return;
+  const last = report.findings.length - 1;
+  const ahead = report.findings.findIndex((f) => f.step > step);
+  const fromHere = direction > 0 ? (ahead === -1 ? last : ahead) : (ahead === -1 ? last + 1 : ahead) - 1;
+  goToFinding(Math.max(0, Math.min(last, selected >= 0 ? selected + direction : fromHere)));
 }
 
 function fail(message: string): void {
@@ -81,7 +98,8 @@ async function read(text: string, name: string): Promise<void> {
     const next = await analyze(text);
     show(next, quote(name, 48) || "Your log", true);
     const n = next.findings.length;
-    if (status) status.textContent = `Read ${next.input.lines.toLocaleString("en-GB")} lines. ${n === 0 ? "Nothing found." : n === 1 ? "1 finding." : `${n.toLocaleString("en-GB")} findings.`}`;
+    const found = n === 0 ? "Nothing found." : n === 1 ? "1 finding." : `${n.toLocaleString("en-GB")} findings.`;
+    if (status) status.textContent = `Read ${next.input.lines.toLocaleString("en-GB")} lines. ${found}${cut(next) ? ` ${cut(next)}` : ""}`;
     panelEl?.focus({ preventScroll: true });
     panelEl?.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "nearest" });
   } catch (e) {
@@ -102,6 +120,8 @@ if (stored) {
   try {
     example = JSON.parse(stored) as Report;
     report = example;
+    selected = startAt(example);
+    step = example.findings[selected]?.step ?? 1;
   } catch {
     example = null;
   }
@@ -130,14 +150,25 @@ backButton?.addEventListener("click", () => {
 });
 
 document.addEventListener("click", (event) => {
-  const target = (event.target as Element | null)?.closest("[data-step], [data-i]");
-  if (!target) return;
-  if (target.hasAttribute("data-step")) select(selected + Number(target.getAttribute("data-step")));
-  else if (target.classList.contains("row")) select(Number(target.getAttribute("data-i")));
+  const from = event.target as Element | null;
+  const target = from?.closest("[data-step], [data-i], [data-group]");
+  if (target?.hasAttribute("data-step")) return stepFinding(Number(target.getAttribute("data-step")));
+  if (target?.hasAttribute("data-i")) return goToFinding(Number(target.getAttribute("data-i")));
+  if (target?.hasAttribute("data-group")) {
+    const group = target.getAttribute("data-group");
+    goToFinding(report?.findings.findIndex((f) => f.group === group) ?? -1);
+    return document.getElementById(`group-${group}`)?.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" });
+  }
+  // Anywhere else on the tape: the step under the pointer.
+  const svg = from?.closest("#tape");
+  if (svg && report) {
+    const box = svg.getBoundingClientRect();
+    goTo(stepAt(((event as MouseEvent).clientX - box.left) / box.width, report.session.steps));
+  }
 });
 document.addEventListener("input", (event) => {
   const target = event.target as HTMLInputElement | null;
-  if (target?.id === "scrub") select(Number(target.value) - 1);
+  if (target?.id === "scrub") goTo(Number(target.value));
 });
 
 // A file dropped anywhere on the page is read. Without this the browser would open it, leaving the page.
@@ -154,8 +185,7 @@ document.addEventListener("drop", (event) => {
 
 $("copy-id")?.addEventListener("click", async (event) => {
   const id = $("report-id")?.textContent ?? "";
-  const button = event.currentTarget as HTMLElement;
-  const said = button.querySelector(".copy-said");
+  const said = (event.currentTarget as HTMLElement).querySelector(".copy-said");
   try {
     await navigator.clipboard.writeText(id);
     if (said) said.textContent = "Copied";

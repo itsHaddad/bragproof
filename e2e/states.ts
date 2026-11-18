@@ -31,8 +31,23 @@ export interface State {
   expect: "report" | "error";
 }
 
+/** A log 30 steps longer than the reader's limit, with a skipped check in the part that is not read. */
+function overLimit(): string {
+  const parts: Line[][] = [user("Keep going.")];
+  for (let i = 0; i < 50_030; i++) parts.push(bash(i % 10_000 === 9_999 || i > 50_010 ? "git commit --no-verify -m wip" : "ls"));
+  return log(...parts);
+}
+
+let made: State[] | null = null;
+
 export function gateStates(): State[] {
+  made ??= states();
+  return made;
+}
+
+function states(): State[] {
   return [
+    { name: "over", file: "very-long-session.jsonl", text: overLimit(), expect: "report" },
     { name: "full", file: "release-session.jsonl", text: busy(), expect: "report" },
     { name: "one", file: "one-finding.jsonl", text: log(user("Fix the typo."), read("/home/dev/shop/README.md"), edit("/home/dev/shop/README.md", "teh", "the"), bash('git commit -n -m "docs: typo"'), say("Fixed the typo and committed.")), expect: "report" },
     { name: "clean", file: "clean-session.jsonl", text: log(user("Fix the typo."), read("/home/dev/shop/README.md"), edit("/home/dev/shop/README.md", "teh", "the"), bash("bun test", { output: "12 pass" }), bash('git commit -m "docs: typo"'), say("Fixed the typo. Tests pass.")), expect: "report" },

@@ -9,6 +9,7 @@
   .panel { background: none; border: 0; padding: 0; }
   .panel-main { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-4); }
   .brag-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .recorded-note { display: none; }
   .readout { min-height: 9.5rem; }
   .readout-means { display: none; }
   .evidence { max-height: 4.6em; }
@@ -17,7 +18,16 @@
 .chip { display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--s-3); border-radius: var(--r-full); background: var(--surface-2); font-weight: 600; font-size: var(--step--1); overflow-wrap: anywhere; }
 .chip-example { background: var(--accent-soft); }
 .brag { border-left: 3px solid var(--line); padding-left: var(--s-3); }
-.brag-label, .tape-label { font-size: var(--step--1); }
+.brag-label { font-size: var(--step--1); }
+.recorded { border-left: 3px solid var(--text); padding-left: var(--s-3); }
+.recorded-list { list-style: none; margin: 0; padding: 0; font: var(--step--1) / 1.5 var(--font-mono); overflow-wrap: anywhere; max-width: none; }
+.recorded-list li { max-width: none; }
+.recorded-note { font-size: var(--step--1); }
+.tape { cursor: pointer; }
+.readout-plain { color: var(--text); }
+.readout-where { max-width: var(--measure); }
+.note-cut { color: var(--text); font-weight: 600; }
+.cut-line { display: block; font-family: var(--font-text); font-weight: 600; }
 .brag-text { font-size: var(--step-0); overflow-wrap: anywhere; }
 
 .tape { width: 100%; height: auto; max-width: 45rem; }
@@ -50,9 +60,14 @@
 .scrub { width: 100%; min-height: var(--control); margin: 0; accent-color: var(--accent); cursor: pointer; }
 
 .counts { display: flex; flex-wrap: wrap; gap: var(--s-2); list-style: none; margin: 0; padding: 0; }
-.count { display: inline-flex; align-items: center; gap: var(--s-2); min-height: 28px; padding: 0 var(--s-3); border-radius: var(--r-full); background: var(--surface-2); font-size: var(--step--1); font-weight: 600; max-width: none; }
+.counts li { max-width: none; display: flex; align-items: center; }
+/* A kind with findings is a button (bordered, full height). A kind with none is plain text, so it does not look pressable. */
+.count { display: inline-flex; align-items: center; gap: var(--s-2); min-height: var(--control); padding: 0 var(--s-3); font: 600 var(--step--1) / 1 var(--font-text); color: var(--text); }
+button.count { border: 1px solid var(--field-line); border-radius: var(--r-1); background: var(--surface); cursor: pointer; transition: background-color var(--t-quick) ease, transform var(--t-quick) var(--ease-out); }
+button.count:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) { button.count:hover { background: var(--surface-2); } }
 .count .mark { color: var(--mark); }
-.count.zero { color: var(--muted); font-weight: 500; }
+.count.zero { color: var(--muted); font-weight: 500; padding-inline: var(--s-2); }
 .count.zero .mark { color: var(--muted); }
 .note { display: flex; gap: var(--s-2); align-items: flex-start; color: var(--muted); font-size: var(--step--1); border-top: 1px solid var(--line); padding-top: var(--s-3); }
 .note .icon { margin-top: 1px; }
@@ -77,5 +92,6 @@
 .row-fact { font-weight: 600; overflow-wrap: anywhere; }
 .row-evidence { grid-column: 2; font: var(--step--1) / 1.5 var(--font-mono); color: var(--muted); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .hosts { padding-block: var(--s-4); border-top: 1px solid var(--line); margin: 0; overflow-wrap: anywhere; }
-@media (prefers-reduced-motion: reduce) { .tape-mark, .readout-in, .fresh { animation: none; } .row:active { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tape-mark, .readout-in, .fresh { animation: none; } .row:active, button.count:active { transform: none; } }
+@media print { [data-reveal].wait, [data-reveal].wait [data-pop] { opacity: 1 !important; transform: none !important; scale: 1 !important; } }
 .ledger-empty { padding-block: var(--s-5); margin: 0; }

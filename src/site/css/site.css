@@ -20,6 +20,17 @@
 .where { display: flex; gap: var(--s-2); align-items: flex-start; color: var(--muted); font-size: var(--step--1); margin: 0; }
 .where .icon { margin-top: 1px; }
 .where code { font-family: var(--font-mono); color: var(--text); overflow-wrap: anywhere; }
+.where-short { display: none; }
+/* Links inside running text get a 44 px hit area without moving the line: padding out, the same margin back in. */
+main p a:not(.btn):not(.more), main li a:not(.tab) { display: inline-block; padding-block: 0.75rem; margin-block: -0.75rem; }
+.rule-n .bar { width: 4.5rem; margin: 6px 0 0 auto; height: 6px; }
+@media (max-width: 40rem) {
+  .rules-full, .rules-full tbody { display: block; }
+  .rules-full thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .rules-full tr { display: grid; grid-template-columns: 1fr auto; gap: var(--s-1) var(--s-3); padding-block: var(--s-3); border-bottom: 1px solid var(--line); }
+  .rules-full td { border: 0; padding: 0; }
+  .rules-full .rule-shows { grid-column: 1 / -1; grid-row: 2; }
+}
 .feedback { display: grid; gap: var(--s-3); }
 .feedback .status, .feedback .error { margin: 0; font-weight: 600; }
 .feedback .paste { margin-top: var(--s-4); }
@@ -33,6 +44,7 @@
   .hero .lead { font-size: var(--step-0); }
   .hero .panel { order: 5; }
   .hero .where { order: 6; }
+  .hero .where-short { display: flex; gap: var(--s-2); align-items: center; margin: 0; color: var(--muted); font-size: var(--step--1); }
   .actions .btn { padding-inline: var(--s-4); }
 }
 .paste { margin-top: var(--s-4); display: grid; gap: var(--s-3); }

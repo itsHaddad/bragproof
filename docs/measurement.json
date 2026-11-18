@@ -23,7 +23,7 @@
     "019d6625-1efc-7b82-8260-d5cb88852639: No agent messages found. A Claude Code session log has one JSON object per line.",
     "019d638d-86fa-7321-883c-58120b6a8a9d: No agent messages found. A Claude Code session log has one JSON object per line."
   ],
-  "commit": "81d98e941285f94afad35a30f0b234c25f8e53f9",
+  "commit": "896674392eff0a24d244375dd9d454d66870bbd5",
   "askedFirst": {
     "no": 80,
     "yes": 178,
@@ -34,22 +34,26 @@
     "percent": 21.9
   },
   "notInDiff": {
-    "sessions": 35,
-    "percent": 12.4
+    "sessions": 28,
+    "percent": 9.9
   },
   "anyShown": {
     "sessions": 78,
     "percent": 27.6
   },
-  "rulesVersion": "2026-11-18.2",
+  "rulesVersion": "2026-11-19.1",
   "groups": {
     "skipped": {
-      "sessions": 14,
-      "percent": 4.9
+      "sessions": 7,
+      "percent": 2.5
     },
     "off": {
-      "sessions": 41,
-      "percent": 14.5
+      "sessions": 25,
+      "percent": 8.8
+    },
+    "config": {
+      "sessions": 25,
+      "percent": 8.8
     },
     "secrets": {
       "sessions": 11,
@@ -86,7 +90,7 @@
       "percent": 7.8
     },
     "check-config": {
-      "group": "off",
+      "group": "config",
       "findings": 80,
       "sessions": 18,
       "percent": 6.4
@@ -116,7 +120,7 @@
       "percent": 2.1
     },
     "sandbox-off": {
-      "group": "skipped",
+      "group": "config",
       "findings": 53,
       "sessions": 4,
       "percent": 1.4
@@ -128,7 +132,7 @@
       "percent": 1.1
     },
     "own-settings": {
-      "group": "skipped",
+      "group": "config",
       "findings": 5,
       "sessions": 3,
       "percent": 1.1

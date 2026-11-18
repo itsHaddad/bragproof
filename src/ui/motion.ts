@@ -12,7 +12,9 @@ export function reveals(root: ParentNode = document): void {
   const seen = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
+        // Also released when it is already above the screen (a jump to a link further down, a restored scroll
+        // position): nothing may be left waiting where it cannot come into view from below.
+        if (!entry.isIntersecting && entry.boundingClientRect.top >= 0) continue;
         entry.target.classList.remove("wait");
         seen.unobserve(entry.target);
       }

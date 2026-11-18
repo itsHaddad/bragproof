@@ -64,14 +64,19 @@ test("the example on the first screen is what the reader really gives for the ex
   const fresh = await analyze(await dist("/example-session.jsonl"));
   expect(stored).toEqual(fresh);
   expect(html).toContain(fresh.id);
-  expect(fresh.findings.map((f) => f.group)).toEqual(["outside", "off", "off", "secrets", "off", "skipped", "undo"]);
+  expect(fresh.findings.map((f) => f.rule)).toEqual(["installed-package", "lint-off", "secret-read", "test-skipped", "commit-no-verify", "force-push"]);
+  // Every rule the example shows was seen in real sessions: nothing on the first screen is unmeasured.
+  for (const f of fresh.findings) expect(Object.keys(measured.rules)).toContain(f.rule);
+  // It opens on the finding that sits against "All tests pass": the skipped test.
+  expect(/class="row is-on"[^>]*data-i="3"/.test(html)).toBe(true);
+  expect(html).toContain("A made-up session");
   expect(html).toContain("Example session");
 });
 
 test("every rule that can report is described on the method page, and the switched-off rule is said to be off", async () => {
   const described = new Set(RULE_TEXT.map((r) => r.id));
   const emitted = new Set<string>();
-  for await (const file of new Glob("src/core/rules-*.ts").scan(".")) for (const m of (await Bun.file(file).text()).matchAll(/(?:\["([a-z-]+)", "(?:skipped|off|secrets|outside|undo|hidden)"|add\("([a-z-]+)"|rule: "([a-z-]+)"|"((?:ran|installed)-package)")/g)) emitted.add(m[1] ?? m[2] ?? m[3] ?? m[4] ?? "");
+  for await (const file of new Glob("src/core/rules-*.ts").scan(".")) for (const m of (await Bun.file(file).text()).matchAll(/(?:\["([a-z-]+)", "(?:skipped|off|config|secrets|outside|undo|hidden)"|add\("([a-z-]+)"|rule: "([a-z-]+)"|"((?:ran|installed)-package)")/g)) emitted.add(m[1] ?? m[2] ?? m[3] ?? m[4] ?? "");
   expect(emitted.size).toBeGreaterThan(20);
   for (const rule of emitted) expect(described.has(rule) ? "" : rule).toBe("");
   for (const rule of Object.keys(measured.rules)) expect(described.has(rule) || SWITCHED_OFF.has(rule) ? "" : rule).toBe("");
@@ -83,7 +88,15 @@ test("every rule that can report is described on the method page, and the switch
 test("numbers on the pages are the ones in the measurement file", async () => {
   const home = await dist("/index.html");
   const method = await dist("/method/index.html");
-  expect(home).toContain(`over ${measured.read} real sessions`);
+  expect(home).toContain(`How often it showed up in ${measured.read} public sessions`);
+  expect(home).toContain("Other people&#39;s rates will differ.".replace("&#39;", "'"));
+  expect(method).toContain("How much the rules miss was not measured.");
+  expect(method).toContain("records directly");
+  expect(home).toContain("its rules recognise");
+  for (const page of [home, method]) expect(/beyond doubt|How often agents do this/.test(page)).toBe(false);
+  // The neutral rules are counted in their own row, apart from "skipped" and "switched off".
+  expect(home).toContain("Settings and pipelines touched");
+  expect(measured.groups.config.sessions).toBeGreaterThan(0);
   expect(home).toContain(`${measured.anyShown.sessions} of them (${measured.anyShown.percent.toFixed(1)}%)`);
   expect(home).toContain(`${measured.notInDiff.sessions} (${measured.notInDiff.percent.toFixed(1)}%)`);
   expect(method).toContain(`${measured.k1.sessions} of the ${measured.read} (${measured.k1.percent.toFixed(1)}%)`);

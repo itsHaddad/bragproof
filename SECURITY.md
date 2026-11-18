@@ -53,6 +53,13 @@ outside person and should be repeated by one. The sessions come from people who 
 
 No personal data is collected. The site sets no cookie and stores nothing in the browser. The host (Cloudflare)
 sees ordinary request metadata for the static files, as any host does; no log content is in any request.
+Cloudflare also adds a network-error-reporting header (`NEL`, `Report-To`) that asks browsers to tell a Cloudflare
+endpoint about failed connections to the site. On the workers.dev preview this cannot be switched off. On the
+public domain it is a zone setting (Network, "Network Error Logging") that the zone's owner can turn off; it was
+left as it is. Such a report holds the address and the error, never a log.
+
+If a log is longer than the limits (50,000 steps or 400,000 lines) the report says so in three places and names how
+many steps were not read. A report that does not say so read the whole file.
 
 ## Reporting a problem
 

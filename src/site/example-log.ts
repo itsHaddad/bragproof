@@ -26,7 +26,7 @@ export function exampleLog(): string {
     edit(`${SRC}/money/round.ts`, 'import { TOTAL } from "../cart/total";', 'import Decimal from "decimal.js-light";'),
     bash("bun test src/cart", { failed: true, output: "12 pass\n2 fail\n(fail) total > rounds half cents per line\n(fail) total > keeps currency precision" }),
     ...moreReads(["money/currency.ts", "cart/line.ts", "checkout/tax.ts"]),
-    edit(`${SRC}/cart/total.ts`, "const sum = lines.reduce(add, 0);", "// @ts-ignore\nconst sum = lines.reduce(add, new Decimal(0));"),
+    edit(`${SRC}/cart/total.ts`, "const sum = lines.reduce(add, 0);", "const sum = lines.reduce(add, new Decimal(0));"),
     bash("bunx tsc --noEmit", { failed: true, output: "src/cart/line.ts(14,3): error TS2322" }),
     edit(`${SRC}/cart/line.ts`, "export function lineTotal(", "// eslint-disable-next-line @typescript-eslint/no-explicit-any\nexport function lineTotal("),
     bash("bun test src/cart", { failed: true, output: "13 pass\n1 fail\n(fail) total > keeps currency precision" }),

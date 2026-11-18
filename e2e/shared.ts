@@ -52,7 +52,7 @@ export const layout = (page: Page) =>
       const size = Math.round(Number.parseFloat(getComputedStyle(el).fontSize) * 10) / 10;
       if (size < 14) small.push([size, (el.textContent ?? "").trim().slice(0, 16)]);
     }
-    const short = [...document.querySelectorAll<HTMLElement>("button, a.btn, a.tab, .foot-links a, a.more, input[type=range], textarea")].filter((el) => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height < 44).map((el) => `${el.tagName}.${el.className} ${Math.round(el.getBoundingClientRect().height)}`);
+    const short = [...document.querySelectorAll<HTMLElement>("button, a.btn, a.tab, .foot-links a, a.more, main p a, main li a, input[type=range], textarea")].filter((el) => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height < 44).map((el) => `${el.tagName}.${el.className} ${Math.round(el.getBoundingClientRect().height)}`);
     const long = [...document.querySelectorAll<HTMLElement>("main p, main li")].filter((el) => el.getBoundingClientRect().width / Number.parseFloat(getComputedStyle(el).fontSize) > 42).map((el) => (el.textContent ?? "").slice(0, 20));
     return { wide: document.documentElement.scrollWidth > window.innerWidth + 1, small: small.slice(0, 6), short: short.slice(0, 6), long: long.slice(0, 4), csp: (window as unknown as { __csp: string[] }).__csp };
   });

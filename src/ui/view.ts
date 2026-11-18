@@ -8,27 +8,45 @@ import { icon, mark } from "./icons.ts";
 import { tape } from "./tape.ts";
 
 const SHOWN = GROUPS.filter((g) => g.id !== "said");
-const plural = (n: number, one: string, many: string): string => `${n.toLocaleString("en-GB")} ${n === 1 ? one : many}`;
+const num = (n: number): string => n.toLocaleString("en-GB");
+const plural = (n: number, one: string, many: string): string => `${num(n)} ${n === 1 ? one : many}`;
 
-export function readout(report: Report, selected: number): El {
+/** Where a report opens: on a finding about tests or commit checks if there is one, since that is what a closing
+ * message most often speaks about; otherwise on the first finding. -1 when there are none. */
+export function startAt(report: Report): number {
+  const first = report.findings.findIndex((f) => ["test-skipped", "tests-deleted", "failure-masked", "commit-no-verify"].includes(f.rule));
+  return first >= 0 ? first : report.findings.length > 0 ? 0 : -1;
+}
+
+const KIND: Record<string, string> = { s: "Command", e: "File edit", r: "File read", f: "Web request", o: "Other tool" };
+
+/** One step of the log: the finding there if a rule matched, otherwise what the step was. */
+export function readout(report: Report, selected: number, step: number): El {
   const f: Finding | undefined = report.findings[selected];
-  if (!f) {
+  const of = `Step ${num(step)} of ${num(report.session.steps)}`;
+  if (f) {
+    const group = groupOf(f.group);
     return h(
       "div",
       { class: "readout", id: "readout" },
-      h("p", { class: "readout-kind" }, "Nothing found"),
-      h("p", { class: "readout-fact" }, `None of the rules matched in ${plural(report.session.steps, "step", "steps")}.`),
-      h("p", { class: "muted" }, "That is not proof of a clean session. The rules look for known patterns, and only in what the log recorded."),
+      h("p", { class: "readout-kind" }, mark(group.shape), group.title, h("span", { class: "readout-count num" }, `${selected + 1} of ${report.findings.length}`)),
+      h("p", { class: "readout-fact" }, f.fact),
+      h("pre", { class: "evidence" }, f.evidence),
+      h("p", { class: "muted readout-where num" }, `${of}. `, h("span", { class: "readout-means" }, group.means)),
     );
   }
-  const group = groupOf(f.group);
+  const letter = report.session.track[step - 1] ?? "";
+  if (!letter) {
+    return h("div", { class: "readout", id: "readout" }, h("p", { class: "readout-kind readout-plain" }, "Nothing found"), h("p", { class: "readout-fact" }, "The log holds no steps."));
+  }
+  const failed = letter !== letter.toLowerCase();
   return h(
     "div",
     { class: "readout", id: "readout" },
-    h("p", { class: "readout-kind" }, mark(group.shape), group.title, h("span", { class: "readout-count num" }, `${selected + 1} of ${report.findings.length}`)),
-    h("p", { class: "readout-fact" }, f.fact),
-    h("pre", { class: "evidence" }, f.evidence),
-    h("p", { class: "muted readout-where num" }, `Step ${f.step.toLocaleString("en-GB")} of ${report.session.steps.toLocaleString("en-GB")}. `, h("span", { class: "readout-means" }, group.means)),
+    h("p", { class: "readout-kind readout-plain" }, of, report.findings.length === 0 ? h("span", { class: "readout-count" }, "Nothing found") : false),
+    h("p", { class: "readout-fact" }, `${KIND[letter.toLowerCase()] ?? "Step"}${failed ? ", ended with an error" : ""}`),
+    h("pre", { class: "evidence" }, report.labels[step - 1] ?? ""),
+    h("p", { class: "muted readout-where" }, report.findings.length === 0 ? "No rule matched in this log. That is not proof of a clean session: the rules look for known patterns, and only in what the log recorded." : "No rule matched this step."),
   );
 }
 
@@ -38,20 +56,39 @@ function kinds(report: Report): El {
   return h("ul", { class: "kinds" }, ...rows.map(([cls, one, many, n]) => h("li", {}, h("span", { class: `kind-tick kind-${cls}`, "aria-hidden": "true" }), h("span", { class: "num" }, plural(n, one, many)))));
 }
 
+/** Each kind with its count. A kind that has findings is a button that goes to its first one. */
 function counts(report: Report): El {
   return h(
     "ul",
     { class: "counts", "aria-label": "Findings by kind" },
     ...SHOWN.map((g) => {
       const n = report.findings.filter((f) => f.group === g.id).length;
-      return h("li", { class: n === 0 ? "count zero" : "count" }, mark(g.shape), h("span", {}, g.short), h("span", { class: "num count-n" }, String(n)));
+      const inside = [mark(g.shape), h("span", {}, g.short), h("span", { class: "num count-n" }, String(n))];
+      return h("li", {}, n === 0 ? h("span", { class: "count zero" }, ...inside) : h("button", { class: "count", type: "button", "data-group": g.id, "aria-label": `${g.title}: ${n}. Show the first.` }, ...inside));
     }),
   );
 }
 
-/** The working panel: where the log came from, what the agent said, the tape, and one finding at a time. */
+/** What the log records about the agent's own checks and commits, beside what it said. Exit states only: whether
+ * the message is true is not judged here (a rule that tried was wrong more often than right). */
+function recorded(report: Report): El {
+  const state = (failed: boolean | null) => (failed === true ? "failed" : failed === false ? "ended normally" : "no result logged");
+  const items = report.checks.map((c) => `${c.command}: ${state(c.failed)}${c.lastLine && c.failed === false ? ` (“${c.lastLine}”)` : ""}`);
+  if (report.commits.made > 0) items.push(`${plural(report.commits.made, "commit", "commits")}, ${num(report.commits.noVerify)} with --no-verify`);
+  return h(
+    "div",
+    { class: "recorded" },
+    h("p", { class: "brag-label muted" }, "What the log records, in order"),
+    items.length === 0 ? h("p", { class: "recorded-list" }, "No test, lint or build command, and no commit.") : h("ol", { class: "recorded-list" }, ...items.map((text) => h("li", {}, text))),
+    h("p", { class: "recorded-note muted" }, "Exit states as logged. Whether the message is true is not judged."),
+  );
+}
+
+/** The working panel: where the log came from, what the agent said, the tape, and one step at a time. */
 export function panel(report: Report, label: string, selected: number, example: boolean): El {
   const n = report.findings.length;
+  const steps = report.session.steps;
+  const step = report.findings[selected]?.step ?? 1;
   const asked = report.session.askedFirst;
   return h(
     "div",
@@ -59,27 +96,37 @@ export function panel(report: Report, label: string, selected: number, example: 
     h(
       "div",
       { class: "panel-main" },
-      h("p", { class: "source" }, h("span", { class: example ? "chip chip-example" : "chip" }, label), h("span", { class: "muted num" }, `${plural(report.session.steps, "step", "steps")}, ${plural(report.session.turns, "request", "requests")}`)),
+      h("p", { class: "source" }, h("span", { class: example ? "chip chip-example" : "chip" }, label), h("span", { class: "muted num" }, `${plural(steps, "step", "steps")}, ${plural(report.session.turns, "request", "requests")}`)),
       report.session.closing ? h("div", { class: "brag" }, h("p", { class: "brag-label muted" }, "What the agent said at the end"), h("p", { class: "brag-text" }, `“${report.session.closing}”`)) : false,
-      h("p", { class: "tape-label muted" }, "What the log shows"),
-      tape(report, selected),
+      recorded(report),
+      tape(report, selected, step),
       kinds(report),
-      readout(report, selected),
+      readout(report, selected, step),
       h(
         "div",
-        { class: n > 1 ? "stepper" : "stepper is-off" },
-        h("button", { class: "btn btn-plain", type: "button", "data-step": "-1" }, icon("left"), h("span", { class: "stepper-word" }, "Previous")),
-        h("input", { class: "scrub", type: "range", id: "scrub", min: 1, max: Math.max(n, 1), value: selected + 1, "aria-label": "Which finding to show" }),
-        h("button", { class: "btn btn-plain", type: "button", "data-step": "1" }, h("span", { class: "stepper-word" }, "Next"), icon("right")),
+        { class: steps > 1 ? "stepper" : "stepper is-off" },
+        h("button", { class: "btn btn-plain", type: "button", "data-step": "-1", "aria-label": "Previous finding" }, icon("left"), h("span", { class: "stepper-word" }, "Previous")),
+        h("input", { class: "scrub", type: "range", id: "scrub", min: 1, max: Math.max(steps, 1), value: step, "aria-label": "Step to show" }),
+        h("button", { class: "btn btn-plain", type: "button", "data-step": "1", "aria-label": "Next finding" }, h("span", { class: "stepper-word" }, "Next"), icon("right")),
       ),
     ),
     h(
       "div",
       { class: "panel-extra" },
       counts(report),
+      example ? h("p", { class: "note" }, icon("note"), h("span", {}, `A made-up session, written to show the rules. It is busier than real ones: ${plural(n, "finding", "findings")} in ${plural(steps, "step", "steps")}, where most public sessions had none.`)) : false,
       asked === false ? h("p", { class: "note" }, icon("note"), h("span", {}, "This session ran with permission prompts switched off: the agent did not ask before each step.")) : false,
+      cut(report) ? h("p", { class: "note note-cut", id: "cut" }, icon("note"), h("span", {}, cut(report))) : false,
     ),
   );
+}
+
+/** The sentence that says the read stopped early, or "" when the whole log was read. */
+export function cut(report: Report): string {
+  const parts: string[] = [];
+  if (report.input.stepsNotRead > 0) parts.push(`Only the first ${num(report.session.steps)} steps were read; ${plural(report.input.stepsNotRead, "later step was", "later steps were")} not.`);
+  if (report.input.linesCut) parts.push(`Only the first ${num(report.input.lines)} lines were read; the rest of the log was not.`);
+  return parts.length > 0 ? `${parts.join(" ")} Findings in the part not read are missing from this report.` : "";
 }
 
 /** Every finding, grouped by kind. Each row can be pressed to show it on the tape. */
@@ -94,13 +141,13 @@ export function ledger(report: Report, selected: number): El {
     ...groups.map(({ g, rows }) =>
       h(
         "section",
-        { class: "ledger-group", "data-reveal": "" },
+        { class: "ledger-group", id: `group-${g.id}`, "data-reveal": "" },
         h("div", { class: "ledger-head" }, h("h3", {}, mark(g.shape), g.title, h("span", { class: "num ledger-n" }, String(rows.length))), h("p", { class: "muted" }, g.means)),
         h(
           "ol",
           { class: "rows" },
           ...rows.map(({ f, i }) =>
-            h("li", { "data-pop": "" }, h("button", { class: i === selected ? "row is-on" : "row", type: "button", "data-i": i, "aria-pressed": i === selected ? "true" : "false" }, h("span", { class: "row-step num muted" }, `Step ${f.step.toLocaleString("en-GB")}`), h("span", { class: "row-fact" }, f.fact), h("span", { class: "row-evidence" }, f.evidence))),
+            h("li", { "data-pop": "" }, h("button", { class: i === selected ? "row is-on" : "row", type: "button", "data-i": i, "aria-pressed": i === selected ? "true" : "false" }, h("span", { class: "row-step num muted" }, `Step ${num(f.step)}`), h("span", { class: "row-fact" }, f.fact), h("span", { class: "row-evidence" }, f.evidence))),
           ),
         ),
       ),
@@ -109,7 +156,7 @@ export function ledger(report: Report, selected: number): El {
   );
 }
 
-/** What makes the report checkable: the id, the rules version, and the command that reproduces it. */
+/** What makes the report checkable: the id, the rules version, and how much of the log was read. */
 export function fingerprint(report: Report): El {
   return h(
     "dl",
@@ -121,6 +168,6 @@ export function fingerprint(report: Report): El {
     h("dt", {}, "Rules"),
     h("dd", { class: "mono" }, report.rules),
     h("dt", {}, "Lines read"),
-    h("dd", { class: "mono" }, `${report.input.lines.toLocaleString("en-GB")}${report.input.skippedLines > 0 ? `, ${report.input.skippedLines.toLocaleString("en-GB")} unreadable and skipped` : ""}`),
+    h("dd", { class: "mono" }, `${num(report.input.lines)}${report.input.skippedLines > 0 ? `, ${num(report.input.skippedLines)} unreadable and skipped` : ""}`, cut(report) ? h("span", { class: "cut-line" }, ` ${cut(report)}`) : false),
   );
 }

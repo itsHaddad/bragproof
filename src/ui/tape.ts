@@ -21,9 +21,12 @@ const centre = (column: number, steps: number): number => {
   return Math.round(((column + 0.5) * TAPE.width * 10) / columns) / 10;
 };
 
-export const cursorAt = (step: number, steps: number): string => `translate(${centre(columnOf(step, steps), steps)} 0)`;
+/** The step under a point `fraction` of the way along the tape (0 at the left edge, 1 at the right). */
+export const stepAt = (fraction: number, steps: number): number => Math.min(Math.max(steps, 1), Math.max(1, Math.floor(Math.min(0.9999, Math.max(0, fraction)) * Math.max(steps, 1)) + 1));
 
-export function tape(report: Report, selected: number): El {
+export const cursorAt =(step: number, steps: number): string => `translate(${centre(columnOf(step, steps), steps)} 0)`;
+
+export function tape(report: Report, selected: number, step: number): El {
   const { steps, track } = report.session;
   const columns = Math.min(TAPE.columns, Math.max(steps, 1));
   // The tallest kind in a column stands for it; a column with a failed step is drawn with a notch.
@@ -42,17 +45,17 @@ export function tape(report: Report, selected: number): El {
     const level = stacked.get(c) ?? 0;
     stacked.set(c, level + 1);
     if (level > 2) return false;
-    const x = centre(c, steps) - 4.5;
-    const y = 30 - level * 11;
-    return h("path", { class: i === selected ? "tape-mark is-on" : "tape-mark", "data-i": i, d: shapePath(groupOf(f.group).shape), "fill-rule": "evenodd", transform: `translate(${x} ${y}) scale(0.75)` });
+    // Full size: 12 units, which is at least 10 px on a 390 px phone.
+    const x = Math.min(TAPE.width - 12, Math.max(0, centre(c, steps) - 6));
+    const y = 28 - level * 13;
+    return h("path", { class: i === selected ? "tape-mark is-on" : "tape-mark", "data-i": i, d: shapePath(groupOf(f.group).shape), "fill-rule": "evenodd", transform: `translate(${x} ${y})` });
   });
-  const cursor = report.findings[selected];
   return h(
     "svg",
-    { class: "tape", viewBox: `0 0 ${TAPE.width} ${TAPE.height}`, role: "img", "aria-label": `${steps} steps in order. ${report.findings.length} marked.` },
+    { class: "tape", id: "tape", viewBox: `0 0 ${TAPE.width} ${TAPE.height}`, role: "img", "aria-label": `${steps} steps in order. ${report.findings.length} marked. Press anywhere on it to read that step, or use the slider below.` },
     h("rect", { class: "tape-base", x: 0, y: TAPE.base + 2, width: TAPE.width, height: 1 }),
     h("g", { class: "tape-ticks wipe" }, ...ticks),
-    h("rect", { class: cursor ? "tape-cursor" : "tape-cursor is-off", x: -0.5, y: 2, width: 1, height: TAPE.base, transform: cursorAt(cursor?.step ?? 1, steps) }),
+    h("rect", { class: "tape-cursor", x: -0.5, y: 2, width: 1, height: TAPE.base, transform: cursorAt(step, steps) }),
     h("g", { class: "tape-marks" }, ...marks),
   );
 }

@@ -38,9 +38,11 @@ The full list, with how often each fires on public sessions, is on the method pa
 
 Measured on 283 public Claude Code sessions (SWE-chat, seeded sample):
 
-- 78 sessions (27.6%) had at least one finding; 35 (12.4%) had one that no diff can show.
+- 78 sessions (27.6%) had at least one finding; 28 (9.9%) had one that no diff can show. 25 of the 78 include a
+  neutral finding (a CI workflow or settings file touched), which is counted in a kind of its own.
 - Of 40 findings about checks and keys read by hand, 39 were what they said. Of 30 others, 26 were; the three
-  causes were fixed.
+  causes were fixed. The reading was done on the first version of the rules and the current counts were not
+  read again. How much the rules miss was not measured, and 11 of the 28 rules never fired on real sessions.
 - A rule for "said the tests pass, the log does not show it" held in at most 13 of 30. It is switched off.
 
 The reading by hand was done by the builder, a language model. Details and limits: [docs/MEASUREMENT.md](docs/MEASUREMENT.md).
