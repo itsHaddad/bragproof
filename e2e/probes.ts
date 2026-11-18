@@ -84,6 +84,11 @@ export async function firstScreen(browser: Browser): Promise<void> {
     const cells = [...document.querySelectorAll(".rules-full td")].map((el) => el.getBoundingClientRect().right);
     return { inner: wrap.scrollWidth - wrap.clientWidth, right: Math.round(Math.max(...cells)), view: window.innerWidth };
   });
+  // With motion on: scrolled to, the long table must come out of waiting although it is taller than the screen.
+  await page.evaluate(() => document.querySelector("#h-rules")?.scrollIntoView({ block: "start" }));
+  await page.waitForTimeout(900);
+  const shown = await page.evaluate(() => ({ waiting: document.querySelector(".rules-wrap")?.classList.contains("wait"), opacity: getComputedStyle(document.querySelector(".rules-wrap") as Element).opacity }));
+  check(shown.waiting === false && Number(shown.opacity) > 0.95, `method at 390: the rules table shows once scrolled to ${JSON.stringify(shown)}`);
   check(rules.inner <= 1 && rules.right <= rules.view, `method at 390: the rules table fits with no inner sideways scroll (overflow ${rules.inner}, right edge ${rules.right} of ${rules.view})`);
   report.firstScreen = first;
   await ctx.close();

@@ -19,7 +19,9 @@ export function reveals(root: ParentNode = document): void {
         seen.unobserve(entry.target);
       }
     },
-    { threshold: 0.25 },
+    // Any part of it past the bottom eighth of the screen releases it. A share of the element's own height would
+    // leave something taller than the screen (a long table on a phone) waiting for ever.
+    { threshold: 0, rootMargin: "0px 0px -12% 0px" },
   );
   for (const el of root.querySelectorAll<HTMLElement>("[data-reveal]")) {
     if (el.getBoundingClientRect().top < innerHeight * 0.9) continue;
