@@ -41,15 +41,15 @@ export function tape(report: Report, selected: number, step: number): El {
   const ticks = tall.map((height, c) => h("rect", { class: failed[c] ? "tick tick-failed" : "tick", x: centre(c, steps) - 0.8, y: TAPE.base - height, width: 1.6, height: Math.max(height, 2), rx: 0.8 }));
   // Marks are full size (12 units, at least 10 px on a 390 px phone). One that would cover its neighbour goes a
   // row up; past three rows it is left off the tape and stays in the list below.
-  const lastX = [-99, -99, -99];
+  const lastX = [-99, -99];
   const marks = report.findings.map((f, i) => {
     const c = columnOf(f.step, steps);
-    const x = Math.min(TAPE.width - 12, Math.max(0, centre(c, steps) - 6));
-    const level = lastX.findIndex((taken) => x - taken >= 13);
+    const x = Math.round(Math.min(TAPE.width - 16, Math.max(0, centre(c, steps) - 8)) * 10) / 10;
+    const level = lastX.findIndex((taken) => x - taken >= 17);
     if (level === -1) return false;
     lastX[level] = x;
-    const y = 28 - level * 13;
-    return h("path", { class: i === selected ? "tape-mark is-on" : "tape-mark", "data-i": i, d: shapePath(groupOf(f.group).shape), "fill-rule": "evenodd", transform: `translate(${x} ${y})` });
+    const y = 26 - level * 18;
+    return h("path", { class: i === selected ? "tape-mark is-on" : "tape-mark", "data-i": i, d: shapePath(groupOf(f.group).shape), "fill-rule": "evenodd", transform: `translate(${x} ${y}) scale(1.33)` });
   });
   return h(
     "svg",
